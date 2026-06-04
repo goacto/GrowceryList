@@ -1231,11 +1231,12 @@ textarea {
     background: #e5e7eb;
     border-radius: var(--border-radius);
     padding: 3px;
-    margin: 0 auto var(--spacing-xl);
-    width: fit-content;
+    margin: 0 0 var(--spacing-xl);
+    width: 100%;
 }
 
 .settings-tab-btn {
+    flex: 1;
     padding: var(--spacing-sm) var(--spacing-md);
     border: none;
     background: transparent;
@@ -1246,6 +1247,7 @@ textarea {
     cursor: pointer;
     transition: background-color 0.15s, color 0.15s;
     white-space: nowrap;
+    text-align: center;
 }
 
 .settings-tab-btn:hover {
@@ -1263,6 +1265,11 @@ textarea {
 .settings-panel {
     padding: var(--spacing-sm) 0 var(--spacing-xl);
     width: 100%;
+}
+
+/* Ensure hidden attribute always wins regardless of display overrides */
+.settings-panel[hidden] {
+    display: none !important;
 }
 
 /* Profile + AI tabs: center form content in a readable column */
