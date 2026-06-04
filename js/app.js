@@ -24,12 +24,24 @@ const App = {
 
     // Initialize application
     init() {
+        AI.migrate();                        // one-time legacy key migration
         this.loadLists();
         this.loadRecipes();
         this.loadMealPlans();
         this.state.profile = Storage.getProfile();
         this.bindEvents();
         this.render();
+        this.initSplash();
+    },
+
+    // Dismiss splash after animations complete
+    initSplash() {
+        const splash = document.getElementById('splash-screen');
+        if (!splash) return;
+        setTimeout(() => {
+            splash.classList.add('splash-hiding');
+            setTimeout(() => { splash.hidden = true; }, 520);
+        }, 2300);
     },
 
     // Load lists from storage
@@ -62,16 +74,15 @@ const App = {
         const isNew = !existingList;
 
         if (isNew) {
-            // New list
             Storage.addList(this.state.currentList);
             Toast.success('List created successfully!');
         } else {
-            // Update existing
             Storage.updateList(this.state.currentList.id, this.state.currentList);
             Toast.success('List saved successfully!');
         }
 
         this.loadLists();
+        this.checkEngagementMilestones();
         this.showView('list-overview');
         this.render();
     },
@@ -348,20 +359,31 @@ const App = {
             this.updateAvatarPreview();
         });
 
+        // Provider radio selector
+        document.querySelectorAll('input[name="ai-provider"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (radio.checked) {
+                    AI.setProvider(radio.value);
+                    this.renderAISettings();
+                }
+            });
+        });
+
         getElement('ai-key-save').addEventListener('click', () => {
             const key = getElement('ai-api-key-input').value.trim();
             if (!key) { Toast.error('Please enter an API key.'); return; }
             AI.setKey(key);
-            this.renderAIKeyStatus();
-            Toast.success('API key saved!');
+            this.renderAISettings();
+            Toast.success(`${AI.PROVIDERS[AI.getProvider()].name} API key saved!`);
         });
 
         getElement('ai-key-clear').addEventListener('click', () => {
-            if (confirm('Clear your saved API key?')) {
+            const name = AI.PROVIDERS[AI.getProvider()].name;
+            if (confirm(`Clear your ${name} API key?`)) {
                 AI.clearKey();
                 getElement('ai-api-key-input').value = '';
-                this.renderAIKeyStatus();
-                Toast.info('API key cleared.');
+                this.renderAISettings();
+                Toast.info(`${name} API key cleared.`);
             }
         });
 
@@ -994,7 +1016,7 @@ const App = {
 
     renderSettings() {
         this.renderProfilePanel();
-        this.renderAIKeyStatus();
+        this.renderAISettings();
     },
 
     renderProfilePanel() {
@@ -1028,6 +1050,7 @@ const App = {
         Storage.saveProfile(profile);
         this.state.profile = profile;
         Toast.success('Profile saved!');
+        this.checkEngagementMilestones();
     },
 
     switchSettingsTab(tab) {
@@ -1043,29 +1066,130 @@ const App = {
         if (tab === 'ai') this.renderAIKeyStatus();
     },
 
+    renderAISettings() {
+        const provider   = AI.getProvider();
+        const cfg        = AI.PROVIDERS[provider];
+
+        // Sync provider radio cards
+        document.querySelectorAll('input[name="ai-provider"]').forEach(radio => {
+            const checked = radio.value === provider;
+            radio.checked = checked;
+            radio.closest('.provider-option').classList.toggle('active', checked);
+        });
+
+        // Update "Get a key" link
+        const keyLink = getElement('ai-get-key-link');
+        if (keyLink) keyLink.href = cfg.docsUrl;
+
+        // Key input: show masked version of existing key or clear
+        const keyInput = getElement('ai-api-key-input');
+        const savedKey = AI.getKey(provider);
+        keyInput.value       = savedKey ? savedKey.slice(0, 16) + '…' : '';
+        keyInput.placeholder = cfg.keyHint;
+        keyInput.type        = 'password';
+        const toggleBtn = getElement('ai-key-toggle');
+        if (toggleBtn) toggleBtn.textContent = 'Show';
+
+        // Key status badge
+        const statusEl = getElement('ai-key-status');
+        if (statusEl) {
+            if (AI.hasKey(provider)) {
+                statusEl.className = 'ai-key-status configured';
+                statusEl.textContent = `✓ ${cfg.name} key configured`;
+            } else if (AI.hasAnyKey()) {
+                const fallback = Object.keys(AI.PROVIDERS).find(p => AI.hasKey(p));
+                statusEl.className = 'ai-key-status configured';
+                statusEl.textContent = `✓ Using ${AI.PROVIDERS[fallback].name} key as fallback`;
+            } else {
+                statusEl.className = 'ai-key-status not-configured';
+                statusEl.textContent = `⚠ No key for ${cfg.name} — AI features disabled`;
+            }
+        }
+
+        // Usage bar
+        this.renderAIUsage();
+
+        // Milestones
+        this.renderMilestones();
+    },
+
     renderAIKeyStatus() {
-        const el = getElement('ai-key-status');
-        if (!el) return;
-        if (AI.isConfigured()) {
-            const key = AI.getKey();
-            el.className = 'ai-key-status configured';
-            el.textContent = `✓ API key configured (${key.slice(0, 12)}…)`;
-            getElement('ai-api-key-input').value = key;
+        // Alias kept for renderSettings() compatibility
+        this.renderAISettings();
+    },
+
+    renderAIUsage() {
+        const fillEl  = getElement('ai-usage-fill');
+        const labelEl = getElement('ai-usage-label');
+        if (!fillEl || !labelEl) return;
+
+        if (AI.hasAnyKey()) {
+            fillEl.style.width  = '100%';
+            fillEl.style.background = 'linear-gradient(90deg, #7c3aed, #4f46e5)';
+            labelEl.textContent = 'Unlimited (BYOK active)';
         } else {
-            el.className = 'ai-key-status not-configured';
-            el.textContent = '⚠ No API key — AI features are disabled. Add your key below.';
+            const u     = AI.getUsage();
+            const total = AI.getTotalFree();
+            const pct   = Math.min(100, Math.round((u.used / total) * 100));
+            fillEl.style.width      = pct + '%';
+            fillEl.style.background = '';
+            labelEl.textContent     = `${u.used} / ${total} used`;
+        }
+    },
+
+    renderMilestones() {
+        const el = getElement('ai-milestone-track');
+        if (!el) return;
+
+        if (AI.getUsage().bonusUnlocked) {
+            el.innerHTML = `<div class="milestone-unlocked">🎉 Bonus unlocked! +10 free generations earned.</div>`;
+            return;
+        }
+
+        const profile = Storage.getProfile();
+        const lists   = Storage.getLists();
+        const milestones = [
+            { label: 'Set up your profile',          done: !!profile.displayName },
+            { label: 'Create a grocery list',        done: lists.length > 0 },
+            { label: 'Complete a shopping session',  done: lists.some(l => (l.growthReflection?.postShop || '').trim().length > 5) }
+        ];
+
+        el.innerHTML = `
+            <p class="milestone-cta">Complete 3 milestones to unlock <strong>10 bonus free generations</strong>:</p>
+            ${milestones.map(m => `
+                <div class="milestone-item ${m.done ? 'done' : ''}">
+                    <span class="milestone-check">${m.done ? '✓' : '○'}</span>
+                    <span>${escapeHtml(m.label)}</span>
+                </div>
+            `).join('')}
+        `;
+    },
+
+    checkEngagementMilestones() {
+        const profile = Storage.getProfile();
+        const lists   = Storage.getLists();
+        const m1 = !!profile.displayName;
+        const m2 = lists.length > 0;
+        const m3 = lists.some(l => (l.growthReflection?.postShop || '').trim().length > 5);
+
+        if (m1 && m2 && m3) {
+            const newlyUnlocked = AI.unlockBonus();
+            if (newlyUnlocked) {
+                Toast.success('🎉 All milestones complete! You\'ve unlocked 10 bonus AI generations.');
+            }
         }
     },
 
     // === AI HELPER METHODS ===
 
-    // Gate: check key is set, show toast and return false if not
-    requireAIKey() {
-        if (!AI.isConfigured()) {
-            Toast.error('AI features need an API key. Go to Settings → AI Settings.');
-            return false;
-        }
-        return true;
+    // Gate: check key configured; free-tier path shows guidance when no key
+    requireAIKey() { return this.requireAIGeneration(); },  // legacy alias
+
+    requireAIGeneration() {
+        if (AI.hasAnyKey()) return true;
+        // No BYOK key — free tier requires backend (coming soon)
+        Toast.error('Add your API key in ⚙ Settings → AI Settings to use AI features.');
+        return false;
     },
 
     // Show / hide a named AI panel; hides sibling panels in same view
@@ -1099,6 +1223,7 @@ const App = {
             await streamFn(
                 (delta) => { resultEl.insertAdjacentText('beforeend', delta); },
                 (_full) => {
+                    AI.recordGeneration();
                     resultEl.classList.add('ai-done');
                     if (actionsEl) actionsEl.hidden = false;
                     if (submitBtn) submitBtn.disabled = false;

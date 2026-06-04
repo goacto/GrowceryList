@@ -8,6 +8,23 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- Splash Screen                              -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="splash-screen" role="status" aria-label="Loading GrowceryList">
+        <div class="splash-content">
+            <div class="splash-icon" aria-hidden="true">🌱</div>
+            <h1 class="splash-logo">GrowceryList</h1>
+            <p class="splash-tagline">Fuel your growth journey</p>
+            <div class="splash-dots" aria-hidden="true">
+                <span class="splash-dot"></span>
+                <span class="splash-dot"></span>
+                <span class="splash-dot"></span>
+            </div>
+        </div>
+    </div>
+
     <!-- App Header -->
     <header class="app-header">
         <div class="container">
@@ -466,36 +483,90 @@
                 <div class="settings-panel" id="settings-panel-ai" role="tabpanel" hidden>
                     <div class="ai-settings-intro">
                         <h3>AI Configuration</h3>
-                        <p>GrowceryList uses <strong>Claude</strong> (by Anthropic) to power its six AI growth tools. Add your API key to unlock them now — keys are stored only in your browser and never sent to any server.</p>
+                        <p>Choose your AI provider, add your API key, and unlock all six growth tools instantly. Keys live only in your browser — never on our servers.</p>
                     </div>
 
-                    <div id="ai-key-status" class="ai-key-status" role="status"></div>
-
-                    <div class="form-group">
-                        <label for="ai-api-key-input">Anthropic API Key</label>
-                        <div class="api-key-row">
-                            <input type="password" id="ai-api-key-input" placeholder="sk-ant-..." class="input-field" autocomplete="off" aria-label="Anthropic API key">
-                            <button id="ai-key-toggle" class="btn btn-secondary btn-small" aria-label="Toggle key visibility">Show</button>
+                    <!-- Free Tier Usage Card -->
+                    <div class="ai-usage-card">
+                        <div class="ai-usage-card-header">
+                            <span class="ai-usage-card-title">Free AI Generations</span>
+                            <span class="badge-soon">Coming Soon</span>
                         </div>
-                        <p class="input-hint">Stored in <code>localStorage</code> only. Never transmitted to our servers.</p>
+                        <div class="ai-usage-bar-row">
+                            <div class="ai-usage-bar-track">
+                                <div class="ai-usage-bar-fill" id="ai-usage-fill"></div>
+                            </div>
+                            <span id="ai-usage-label" class="ai-usage-label">0 / 5 used</span>
+                        </div>
+                        <div id="ai-milestone-track" class="ai-milestone-track">
+                            <!-- rendered by JS -->
+                        </div>
                     </div>
 
-                    <div class="ai-key-btn-row">
-                        <button id="ai-key-save" class="btn btn-primary">Save Key</button>
-                        <button id="ai-key-clear" class="btn btn-danger btn-small">Clear Key</button>
+                    <!-- Provider Selector -->
+                    <div class="form-group">
+                        <label>AI Provider <span class="badge-byok">BYOK · Beta</span></label>
+                        <div class="provider-grid" role="radiogroup" aria-label="Select AI provider">
+                            <label class="provider-option">
+                                <input type="radio" name="ai-provider" value="anthropic" class="sr-only" aria-label="Anthropic Claude">
+                                <div class="provider-option-card">
+                                    <span class="provider-logo prov-anthropic">A</span>
+                                    <strong>Claude</strong>
+                                    <span>Anthropic</span>
+                                </div>
+                            </label>
+                            <label class="provider-option">
+                                <input type="radio" name="ai-provider" value="openai" class="sr-only" aria-label="OpenAI GPT-4o">
+                                <div class="provider-option-card">
+                                    <span class="provider-logo prov-openai">⊕</span>
+                                    <strong>GPT-4o</strong>
+                                    <span>OpenAI</span>
+                                </div>
+                            </label>
+                            <label class="provider-option">
+                                <input type="radio" name="ai-provider" value="xai" class="sr-only" aria-label="xAI Grok">
+                                <div class="provider-option-card">
+                                    <span class="provider-logo prov-xai">𝕏</span>
+                                    <strong>Grok</strong>
+                                    <span>xAI</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Per-provider Key Input -->
+                    <div class="byok-section">
+                        <div class="byok-section-header">
+                            <span class="byok-section-title">API Key</span>
+                            <a id="ai-get-key-link" href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" class="ai-get-key-link">Get a key →</a>
+                        </div>
+
+                        <div id="ai-key-status" class="ai-key-status" role="status"></div>
+
+                        <div class="form-group">
+                            <div class="api-key-row">
+                                <input type="password" id="ai-api-key-input" placeholder="sk-ant-..." class="input-field" autocomplete="off" aria-label="API key for selected provider">
+                                <button id="ai-key-toggle" class="btn btn-secondary btn-small" aria-label="Toggle key visibility">Show</button>
+                            </div>
+                            <p class="input-hint">Stored in <code>localStorage</code> only. Never transmitted to our servers.</p>
+                        </div>
+
+                        <div class="ai-key-btn-row">
+                            <button id="ai-key-save" class="btn btn-primary">Save Key</button>
+                            <button id="ai-key-clear" class="btn btn-danger btn-small">Clear</button>
+                        </div>
                     </div>
 
                     <div class="ai-features-preview">
-                        <h4>Unlock 6 AI tools</h4>
+                        <h4>6 AI tools, one key</h4>
                         <ul>
                             <li><strong>✨ AI Build List</strong> — describe your week, get a ready grocery list</li>
                             <li><strong>✨ Optimize Budget</strong> — hit your target without sacrificing goals</li>
                             <li><strong>✨ Nutritional Advice</strong> — align your cart with your growth categories</li>
                             <li><strong>✨ Growth Insights</strong> — patterns and coaching from your shopping history</li>
                             <li><strong>✨ AI Recipe</strong> — turn a pantry list into a complete recipe</li>
-                            <li><strong>✨ Generate Plan with AI</strong> — describe your goals, fill your entire calendar</li>
+                            <li><strong>✨ Generate Plan with AI</strong> — describe your goals, fill your entire week</li>
                         </ul>
-                        <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" class="ai-get-key-link">Get an Anthropic API key →</a>
                     </div>
                 </div>
             </section>

@@ -1,39 +1,196 @@
 /**
- * AI Module
- * Claude API client and all 6 AI feature functions.
- * Calls the Anthropic API directly from the browser using a user-supplied key.
+ * AI Module — multi-provider Claude/GPT/Grok client
+ * Supports: Anthropic (Claude), OpenAI (GPT-4o), xAI (Grok)
+ * Keys stored per-provider in localStorage. Usage tracked for free tier.
  */
 
 const AI = {
-    MODEL: 'claude-sonnet-4-6',
-    API_URL: 'https://api.anthropic.com/v1/messages',
-    KEY_STORAGE: 'growcerylist_api_key',
 
-    getKey()       { return localStorage.getItem(this.KEY_STORAGE) || ''; },
-    setKey(key)    { localStorage.setItem(this.KEY_STORAGE, key.trim()); },
-    clearKey()     { localStorage.removeItem(this.KEY_STORAGE); },
-    isConfigured() { return this.getKey().length > 10; },
+    // ─── Provider Config ─────────────────────────────────────────────────────
 
-    // Base streaming call. onDelta(deltaText, fullTextSoFar), onDone(fullText)
+    PROVIDERS: {
+        anthropic: {
+            name: 'Claude',
+            subtitle: 'Anthropic',
+            url: 'https://api.anthropic.com/v1/messages',
+            model: 'claude-sonnet-4-6',
+            format: 'anthropic',
+            keyHint: 'sk-ant-...',
+            docsUrl: 'https://console.anthropic.com/'
+        },
+        openai: {
+            name: 'GPT-4o',
+            subtitle: 'OpenAI',
+            url: 'https://api.openai.com/v1/chat/completions',
+            model: 'gpt-4o',
+            format: 'openai',
+            keyHint: 'sk-...',
+            docsUrl: 'https://platform.openai.com/api-keys'
+        },
+        xai: {
+            name: 'Grok',
+            subtitle: 'xAI',
+            url: 'https://api.x.ai/v1/chat/completions',
+            model: 'grok-beta',
+            format: 'openai',     // xAI is OpenAI-compatible
+            keyHint: 'xai-...',
+            docsUrl: 'https://console.x.ai/'
+        }
+    },
+
+    // ─── Storage Keys ────────────────────────────────────────────────────────
+
+    STORE: {
+        PROVIDER:   'growcerylist_ai_provider',
+        KEY_PREFIX: 'growcerylist_api_key_',   // + provider id
+        USAGE:      'growcerylist_ai_usage',
+        LEGACY_KEY: 'growcerylist_api_key'      // pre-multi-provider key
+    },
+
+    FREE_LIMIT:  5,
+    BONUS_LIMIT: 10,
+
+    // ─── Provider Management ─────────────────────────────────────────────────
+
+    getProvider()    { return localStorage.getItem(this.STORE.PROVIDER) || 'anthropic'; },
+    setProvider(p)   { localStorage.setItem(this.STORE.PROVIDER, p); },
+
+    getKey(provider) {
+        const p = provider || this.getProvider();
+        return localStorage.getItem(this.STORE.KEY_PREFIX + p) || '';
+    },
+
+    setKey(key, provider) {
+        const p = provider || this.getProvider();
+        localStorage.setItem(this.STORE.KEY_PREFIX + p, key.trim());
+    },
+
+    clearKey(provider) {
+        const p = provider || this.getProvider();
+        localStorage.removeItem(this.STORE.KEY_PREFIX + p);
+    },
+
+    hasKey(provider) {
+        return this.getKey(provider).length > 8;
+    },
+
+    hasAnyKey() {
+        return Object.keys(this.PROVIDERS).some(p => this.hasKey(p));
+    },
+
+    // Migrate a legacy single-provider key to the per-provider store
+    migrate() {
+        const legacy = localStorage.getItem(this.STORE.LEGACY_KEY);
+        if (legacy && !this.hasKey('anthropic')) {
+            this.setKey(legacy, 'anthropic');
+        }
+        if (legacy) {
+            localStorage.removeItem(this.STORE.LEGACY_KEY);
+        }
+    },
+
+    // ─── Usage Tracking ──────────────────────────────────────────────────────
+
+    getUsage() {
+        try {
+            const d = localStorage.getItem(this.STORE.USAGE);
+            return d ? JSON.parse(d) : { used: 0, bonusUnlocked: false };
+        } catch (_) { return { used: 0, bonusUnlocked: false }; }
+    },
+
+    saveUsage(u) {
+        localStorage.setItem(this.STORE.USAGE, JSON.stringify(u));
+    },
+
+    getTotalFree() {
+        const u = this.getUsage();
+        return this.FREE_LIMIT + (u.bonusUnlocked ? this.BONUS_LIMIT : 0);
+    },
+
+    getRemaining() {
+        if (this.hasAnyKey()) return Infinity;
+        const u = this.getUsage();
+        return Math.max(0, this.getTotalFree() - u.used);
+    },
+
+    canGenerate() {
+        return this.hasAnyKey() || this.getRemaining() > 0;
+    },
+
+    recordGeneration() {
+        if (this.hasAnyKey()) return;     // BYOK: unlimited, don't count
+        const u = this.getUsage();
+        u.used = (u.used || 0) + 1;
+        this.saveUsage(u);
+    },
+
+    // Returns true if bonus was newly unlocked (caller shows toast)
+    unlockBonus() {
+        const u = this.getUsage();
+        if (!u.bonusUnlocked) {
+            u.bonusUnlocked = true;
+            this.saveUsage(u);
+            return true;
+        }
+        return false;
+    },
+
+    // ─── Core Streaming Call ─────────────────────────────────────────────────
+
     async stream(system, userMsg, onDelta, onDone) {
-        const key = this.getKey();
-        if (!key) throw new Error('No API key configured — go to Settings → AI Settings.');
+        const provider = this.getProvider();
+        const cfg = this.PROVIDERS[provider];
 
-        const res = await fetch(this.API_URL, {
-            method: 'POST',
-            headers: {
+        // Route: prefer the selected provider's key; fallback to any configured key
+        let key = this.getKey(provider);
+        let activeProvider = provider;
+        if (!key) {
+            const fallback = Object.keys(this.PROVIDERS).find(p => this.hasKey(p));
+            if (fallback) { key = this.getKey(fallback); activeProvider = fallback; }
+        }
+
+        if (!key) {
+            throw new Error('No API key configured. Go to Settings → AI Settings.');
+        }
+
+        const activeCfg = this.PROVIDERS[activeProvider];
+        let headers, body;
+
+        if (activeCfg.format === 'anthropic') {
+            headers = {
                 'x-api-key': key,
                 'anthropic-version': '2023-06-01',
                 'content-type': 'application/json',
                 'anthropic-dangerous-allow-browser': 'true'
-            },
-            body: JSON.stringify({
-                model: this.MODEL,
+            };
+            body = {
+                model: activeCfg.model,
                 max_tokens: 2048,
                 stream: true,
                 system,
                 messages: [{ role: 'user', content: userMsg }]
-            })
+            };
+        } else {
+            // OpenAI-compatible (openai + xai)
+            headers = {
+                'Authorization': `Bearer ${key}`,
+                'content-type': 'application/json'
+            };
+            body = {
+                model: activeCfg.model,
+                max_tokens: 2048,
+                stream: true,
+                messages: [
+                    { role: 'system', content: system },
+                    { role: 'user',   content: userMsg }
+                ]
+            };
+        }
+
+        const res = await fetch(activeCfg.url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body)
         });
 
         if (!res.ok) {
@@ -41,7 +198,7 @@ const AI = {
             throw new Error(err.error?.message || `API error ${res.status}`);
         }
 
-        const reader = res.body.getReader();
+        const reader  = res.body.getReader();
         const decoder = new TextDecoder();
         let full = '';
 
@@ -49,15 +206,29 @@ const AI = {
             const { done, value } = await reader.read();
             if (done) break;
             const chunk = decoder.decode(value, { stream: true });
+
             for (const line of chunk.split('\n')) {
                 if (!line.startsWith('data: ')) continue;
                 const raw = line.slice(6).trim();
                 if (!raw || raw === '[DONE]') continue;
+
                 try {
                     const evt = JSON.parse(raw);
-                    if (evt.type === 'content_block_delta' && evt.delta?.text) {
-                        full += evt.delta.text;
-                        if (onDelta) onDelta(evt.delta.text, full);
+                    let delta = '';
+
+                    if (activeCfg.format === 'anthropic') {
+                        // Anthropic streaming format
+                        if (evt.type === 'content_block_delta' && evt.delta?.text) {
+                            delta = evt.delta.text;
+                        }
+                    } else {
+                        // OpenAI-compatible streaming format
+                        delta = evt.choices?.[0]?.delta?.content || '';
+                    }
+
+                    if (delta) {
+                        full += delta;
+                        if (onDelta) onDelta(delta, full);
                     }
                 } catch (_) {}
             }
@@ -67,7 +238,7 @@ const AI = {
         return full;
     },
 
-    // Parse JSON from AI response, handling markdown code fences
+    // Parse JSON from AI response, tolerating markdown code fences
     parseJSON(text) {
         const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
         const raw = fenced ? fenced[1].trim() : text.trim();
@@ -75,6 +246,7 @@ const AI = {
     },
 
     // ─── Feature 1: Smart List Builder ───────────────────────────────────────
+
     buildShoppingList(description, onDelta, onDone) {
         const system = `You are a grocery shopping assistant for GrowceryList, an app that connects nutrition to personal growth. Always respond with valid JSON only — no explanation, no markdown outside the JSON array.`;
         const user = `Create a grocery list for: "${description}"
@@ -89,6 +261,7 @@ estimatedCost is per-unit in USD as a number.`;
     },
 
     // ─── Feature 2: Meal Plan Generator ──────────────────────────────────────
+
     generateMealPlan(goals, availableRecipes, onDelta, onDone) {
         const recipeList = availableRecipes.length
             ? availableRecipes.map(r => `"${r.title}"`).join(', ')
@@ -112,6 +285,7 @@ Fill a 7-day meal plan. Prefer recipes from the available list. Use null for int
     },
 
     // ─── Feature 3: Reflection Coach ─────────────────────────────────────────
+
     analyzeReflection(currentList, pastLists, onDelta, onDone) {
         const cur = `"${currentList.title}" — ${currentList.items.length} items, ${currentList.items.filter(i => i.purchased).length} purchased
 Categories: ${currentList.growthReflection.categories.join(', ') || 'none'}
@@ -137,6 +311,7 @@ ${past}`;
     },
 
     // ─── Feature 4: Recipe from Ingredients ──────────────────────────────────
+
     generateRecipe(ingredients, onDelta, onDone) {
         const system = `You are a creative recipe developer for GrowceryList. Create healthy, growth-focused recipes. Respond with valid JSON only.`;
         const user = `Create a recipe using some or all of: ${ingredients}
@@ -159,9 +334,10 @@ Respond ONLY with this JSON:
     },
 
     // ─── Feature 5: Budget Optimizer ─────────────────────────────────────────
+
     optimizeBudget(list, targetBudget, onDelta, onDone) {
         const items = list.items.map(i => {
-            const qty = parseFloat(i.quantity) || 1;
+            const qty  = parseFloat(i.quantity) || 1;
             const cost = parseFloat(i.estimatedCost) || 0;
             return `- ${i.name}: qty ${qty} × $${cost.toFixed(2)} = $${(qty * cost).toFixed(2)}`;
         }).join('\n') || '(no items yet)';
@@ -180,8 +356,9 @@ Provide:
     },
 
     // ─── Feature 6: Nutritional Advisor ──────────────────────────────────────
+
     nutritionalAdvice(list, growthGoals, onDelta, onDone) {
-        const items = list.items.map(i => i.name).join(', ') || '(no items yet)';
+        const items  = list.items.map(i => i.name).join(', ') || '(no items yet)';
         const system = `You are a nutritional growth advisor inside GrowceryList. Connect grocery choices to personal growth goals. Be specific, educational, and encouraging. This is not medical advice. Plain text — no markdown headers.`;
         const user = `Analyze my grocery list for nutritional alignment with my growth goals.
 
