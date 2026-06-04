@@ -7,7 +7,8 @@ const Storage = {
     KEYS: {
         LISTS: 'growcerylist_lists',
         RECIPES: 'growcerylist_recipes',
-        MEAL_PLANS: 'growcerylist_meal_plans'
+        MEAL_PLANS: 'growcerylist_meal_plans',
+        PROFILE: 'growcerylist_profile'
     },
 
     // Get all lists
@@ -126,6 +127,26 @@ const Storage = {
         const recipes = this.getRecipes();
         const filtered = recipes.filter(recipe => recipe.id !== id);
         return this.saveRecipes(filtered);
+    },
+
+    // === PROFILE STORAGE ===
+
+    getProfile() {
+        try {
+            const data = localStorage.getItem(this.KEYS.PROFILE);
+            return data ? JSON.parse(data) : { displayName: '', tagline: '', growthStatement: '', goals: [] };
+        } catch (_) {
+            return { displayName: '', tagline: '', growthStatement: '', goals: [] };
+        }
+    },
+
+    saveProfile(profile) {
+        try {
+            localStorage.setItem(this.KEYS.PROFILE, JSON.stringify(profile));
+            return true;
+        } catch (_) {
+            return false;
+        }
     },
 
     // === MEAL PLAN STORAGE ===

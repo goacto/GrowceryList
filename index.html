@@ -20,6 +20,7 @@
                     <button id="nav-lists" class="nav-btn active" aria-label="View grocery lists">Lists</button>
                     <button id="nav-recipes" class="nav-btn" aria-label="View recipes">Recipes</button>
                     <button id="nav-meal-plan" class="nav-btn" aria-label="View meal planner">Meal Plan</button>
+                    <button id="nav-settings" class="nav-btn" aria-label="Settings">⚙ Settings</button>
                 </nav>
             </div>
         </div>
@@ -77,7 +78,26 @@
 
                 <!-- Items Section -->
                 <div class="items-section">
-                    <h3>Items</h3>
+                    <div class="section-header-row">
+                        <h3>Items</h3>
+                        <button id="ai-build-list-btn" class="btn btn-ai btn-small" aria-label="AI build list">✨ AI Build List</button>
+                    </div>
+
+                    <!-- AI: Smart List Builder -->
+                    <div id="ai-list-panel" class="ai-panel" hidden>
+                        <div class="ai-panel-prompt">
+                            <textarea id="ai-list-input" placeholder="Describe your week... e.g. 'high-protein meals for 2, budget $90, no dairy, 5 dinners'" rows="3" aria-label="Describe your grocery needs"></textarea>
+                            <div class="ai-panel-prompt-actions">
+                                <button id="ai-list-submit" class="btn btn-primary btn-small">Generate</button>
+                                <button id="ai-list-panel-close" class="btn btn-secondary btn-small">Cancel</button>
+                            </div>
+                        </div>
+                        <div id="ai-list-result" class="ai-result-text" hidden></div>
+                        <div id="ai-list-actions" class="ai-panel-actions" hidden>
+                            <button id="ai-list-apply" class="btn btn-primary btn-small">✓ Add Items to List</button>
+                            <button id="ai-list-discard" class="btn btn-secondary btn-small">Discard</button>
+                        </div>
+                    </div>
 
                     <!-- Add Item Form -->
                     <div class="add-item-form" role="form" aria-label="Add new item to list">
@@ -99,6 +119,22 @@
                     <div class="cost-summary">
                         <p>Estimated Total: $<span id="estimated-total">0.00</span></p>
                         <p>Actual Total: $<span id="actual-total">0.00</span></p>
+                        <button id="ai-budget-btn" class="btn btn-ai btn-small" aria-label="AI optimize budget">✨ Optimize Budget</button>
+                    </div>
+
+                    <!-- AI: Budget Optimizer -->
+                    <div id="ai-budget-panel" class="ai-panel" hidden>
+                        <div class="ai-panel-prompt">
+                            <label class="ai-budget-label">Target budget: $<input type="number" id="ai-budget-target" placeholder="80" min="1" step="1" aria-label="Target budget in dollars"></label>
+                            <div class="ai-panel-prompt-actions">
+                                <button id="ai-budget-submit" class="btn btn-primary btn-small">Optimize</button>
+                                <button id="ai-budget-panel-close" class="btn btn-secondary btn-small">Cancel</button>
+                            </div>
+                        </div>
+                        <div id="ai-budget-result" class="ai-result-text" hidden></div>
+                        <div id="ai-budget-actions" class="ai-panel-actions" hidden>
+                            <button id="ai-budget-discard" class="btn btn-secondary btn-small">Dismiss</button>
+                        </div>
                     </div>
                 </div>
 
@@ -136,6 +172,24 @@
                             <label><input type="checkbox" value="environment"> Environment</label>
                         </div>
                     </div>
+
+                    <!-- AI: Nutritional Advisor -->
+                    <div class="ai-btn-row">
+                        <button id="ai-nutrition-btn" class="btn btn-ai btn-small" aria-label="AI nutritional advice">✨ Nutritional Advice</button>
+                        <button id="ai-reflection-btn" class="btn btn-ai btn-small" aria-label="AI growth insights">✨ Growth Insights</button>
+                    </div>
+                    <div id="ai-nutrition-panel" class="ai-panel" hidden>
+                        <div id="ai-nutrition-result" class="ai-result-text"></div>
+                        <div class="ai-panel-actions">
+                            <button id="ai-nutrition-discard" class="btn btn-secondary btn-small">Dismiss</button>
+                        </div>
+                    </div>
+                    <div id="ai-reflection-panel" class="ai-panel" hidden>
+                        <div id="ai-reflection-result" class="ai-result-text"></div>
+                        <div class="ai-panel-actions">
+                            <button id="ai-reflection-discard" class="btn btn-secondary btn-small">Dismiss</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Save Button -->
@@ -146,7 +200,27 @@
             <section id="recipe-overview" class="view" aria-label="Recipes overview">
                 <div class="view-header">
                     <h2>Your Recipes</h2>
-                    <button id="new-recipe-btn" class="btn btn-primary" aria-label="Create new recipe">+ New Recipe</button>
+                    <div class="header-actions">
+                        <button id="new-recipe-btn" class="btn btn-primary" aria-label="Create new recipe">+ New Recipe</button>
+                        <button id="ai-recipe-btn" class="btn btn-ai" aria-label="AI generate recipe from ingredients">✨ AI Recipe</button>
+                    </div>
+                </div>
+
+                <!-- AI: Recipe from Ingredients (inline panel in overview) -->
+                <div id="ai-recipe-panel" class="ai-panel" hidden>
+                    <div class="ai-panel-prompt">
+                        <label class="ai-panel-label">What ingredients do you have?</label>
+                        <textarea id="ai-recipe-input" placeholder="e.g. chicken breast, spinach, garlic, olive oil, lemon, quinoa..." rows="3" aria-label="Available ingredients"></textarea>
+                        <div class="ai-panel-prompt-actions">
+                            <button id="ai-recipe-submit" class="btn btn-primary btn-small">Generate Recipe</button>
+                            <button id="ai-recipe-panel-close" class="btn btn-secondary btn-small">Cancel</button>
+                        </div>
+                    </div>
+                    <div id="ai-recipe-result" class="ai-result-text" hidden></div>
+                    <div id="ai-recipe-actions" class="ai-panel-actions" hidden>
+                        <button id="ai-recipe-create" class="btn btn-primary btn-small">✓ Create Recipe</button>
+                        <button id="ai-recipe-discard" class="btn btn-secondary btn-small">Discard</button>
+                    </div>
                 </div>
 
                 <div id="recipes-container" class="lists-grid" role="list" aria-label="Your saved recipes">
@@ -253,6 +327,179 @@
                 </div>
             </section>
 
+            <!-- ═══════════════════════════════════════════ -->
+            <!-- View: Settings                            -->
+            <!-- ═══════════════════════════════════════════ -->
+            <section id="settings-view" class="view" aria-label="Settings">
+                <div class="view-header">
+                    <h2>Settings</h2>
+                </div>
+
+                <nav class="settings-tabs" role="tablist" aria-label="Settings sections">
+                    <button class="settings-tab-btn active" role="tab" data-tab="profile"   aria-selected="true"  aria-controls="settings-panel-profile">Profile</button>
+                    <button class="settings-tab-btn"        role="tab" data-tab="features"  aria-selected="false" aria-controls="settings-panel-features">Features</button>
+                    <button class="settings-tab-btn"        role="tab" data-tab="plan"      aria-selected="false" aria-controls="settings-panel-plan">Plan</button>
+                    <button class="settings-tab-btn"        role="tab" data-tab="ai"        aria-selected="false" aria-controls="settings-panel-ai">AI Settings</button>
+                </nav>
+
+                <!-- ── Profile ── -->
+                <div class="settings-panel" id="settings-panel-profile" role="tabpanel">
+                    <div class="profile-avatar-wrap">
+                        <div id="profile-avatar" class="profile-avatar" aria-label="Profile avatar initials">?</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="profile-display-name">Display Name</label>
+                        <input type="text" id="profile-display-name" placeholder="Your name" class="input-field" aria-label="Display name">
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-tagline">Tagline</label>
+                        <input type="text" id="profile-tagline" placeholder="e.g. Fueling my growth through mindful nutrition" class="input-field" aria-label="Profile tagline">
+                    </div>
+                    <div class="form-group">
+                        <label for="profile-growth-statement">Growth Statement</label>
+                        <textarea id="profile-growth-statement" rows="4" placeholder="Why are you on this journey? What are you working toward?" aria-label="Growth statement"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Default Growth Goals</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" class="profile-goal" value="health"> Health</label>
+                            <label><input type="checkbox" class="profile-goal" value="energy"> Energy</label>
+                            <label><input type="checkbox" class="profile-goal" value="family"> Family</label>
+                            <label><input type="checkbox" class="profile-goal" value="budget"> Budget</label>
+                            <label><input type="checkbox" class="profile-goal" value="environment"> Environment</label>
+                        </div>
+                    </div>
+                    <button id="save-profile-btn" class="btn btn-primary">Save Profile</button>
+                </div>
+
+                <!-- ── Features & Benefits ── -->
+                <div class="settings-panel" id="settings-panel-features" role="tabpanel" hidden>
+                    <div class="features-hero">
+                        <h3>More than a grocery app.</h3>
+                        <p>GrowceryList connects what you eat to who you're becoming. Every list, every recipe, every meal plan is an act of intentional growth.</p>
+                    </div>
+
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">📝</div>
+                            <h4>Growth-First Shopping</h4>
+                            <p>Pre-shopping intentions and post-shopping reflections turn a routine errand into a mindful practice.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🍳</div>
+                            <h4>Recipe Management</h4>
+                            <p>Save growth-supporting recipes with full ingredients, step-by-step instructions, and personal growth notes.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">📅</div>
+                            <h4>Weekly Meal Planning</h4>
+                            <p>Plan your whole week in a visual calendar and generate a complete shopping list in one tap.</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🔒</div>
+                            <h4>Your Data, Your Privacy</h4>
+                            <p>Everything lives in your browser by default. No account required. Full JSON export and import for your own backups.</p>
+                        </div>
+                        <div class="feature-card feature-card-pro">
+                            <div class="feature-icon">✨</div>
+                            <h4>AI Growth Coach <span class="badge-pro">Pro</span></h4>
+                            <p>Six AI tools — list builder, meal planner, reflection coach, recipe generator, budget optimizer, and nutritional advisor — powered by Claude.</p>
+                        </div>
+                        <div class="feature-card feature-card-soon">
+                            <div class="feature-icon">🌱</div>
+                            <h4>Community <span class="badge-soon">Coming Soon</span></h4>
+                            <p>Share your growth journey, discover what others are doing, and draw inspiration from people who shop with intention.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── Plan ── -->
+                <div class="settings-panel" id="settings-panel-plan" role="tabpanel" hidden>
+                    <div class="plan-hero">
+                        <h3>Simple, honest pricing.</h3>
+                        <p>Start free forever. Upgrade when AI becomes essential to your growth journey.</p>
+                    </div>
+
+                    <div class="plan-cards">
+                        <div class="plan-card plan-free">
+                            <div class="plan-tier-name">🌱 Grower</div>
+                            <div class="plan-price">Free <span>forever</span></div>
+                            <ul class="plan-feature-list">
+                                <li class="plan-yes">Unlimited grocery lists</li>
+                                <li class="plan-yes">Unlimited recipes</li>
+                                <li class="plan-yes">Weekly meal planning</li>
+                                <li class="plan-yes">Growth reflections</li>
+                                <li class="plan-yes">Export &amp; import data</li>
+                                <li class="plan-no">Cloud sync</li>
+                                <li class="plan-no">Community feed</li>
+                                <li class="plan-no">AI features (×6)</li>
+                                <li class="plan-no">Spending analytics</li>
+                            </ul>
+                            <div class="plan-cta plan-cta-current">Your current plan</div>
+                        </div>
+
+                        <div class="plan-card plan-pro">
+                            <div class="plan-badge">Most Popular</div>
+                            <div class="plan-tier-name">🚀 Growth Pro</div>
+                            <div class="plan-price">$6 <span>/month</span></div>
+                            <ul class="plan-feature-list">
+                                <li class="plan-yes">Everything in Grower</li>
+                                <li class="plan-yes">Cloud sync across devices</li>
+                                <li class="plan-yes">Community feed &amp; sharing</li>
+                                <li class="plan-yes">✨ AI Smart List Builder</li>
+                                <li class="plan-yes">✨ AI Meal Plan Generator</li>
+                                <li class="plan-yes">✨ AI Reflection Coach</li>
+                                <li class="plan-yes">✨ AI Recipe Generator</li>
+                                <li class="plan-yes">✨ AI Budget Optimizer</li>
+                                <li class="plan-yes">✨ AI Nutritional Advisor</li>
+                                <li class="plan-yes">Spending analytics</li>
+                            </ul>
+                            <div class="plan-cta plan-cta-soon">Coming Soon</div>
+                        </div>
+                    </div>
+
+                    <p class="plan-footnote">During beta, AI features are available to anyone who provides their own Anthropic API key in <strong>AI Settings</strong>.</p>
+                </div>
+
+                <!-- ── AI Settings ── -->
+                <div class="settings-panel" id="settings-panel-ai" role="tabpanel" hidden>
+                    <div class="ai-settings-intro">
+                        <h3>AI Configuration</h3>
+                        <p>GrowceryList uses <strong>Claude</strong> (by Anthropic) to power its six AI growth tools. Add your API key to unlock them now — keys are stored only in your browser and never sent to any server.</p>
+                    </div>
+
+                    <div id="ai-key-status" class="ai-key-status" role="status"></div>
+
+                    <div class="form-group">
+                        <label for="ai-api-key-input">Anthropic API Key</label>
+                        <div class="api-key-row">
+                            <input type="password" id="ai-api-key-input" placeholder="sk-ant-..." class="input-field" autocomplete="off" aria-label="Anthropic API key">
+                            <button id="ai-key-toggle" class="btn btn-secondary btn-small" aria-label="Toggle key visibility">Show</button>
+                        </div>
+                        <p class="input-hint">Stored in <code>localStorage</code> only. Never transmitted to our servers.</p>
+                    </div>
+
+                    <div class="ai-key-btn-row">
+                        <button id="ai-key-save" class="btn btn-primary">Save Key</button>
+                        <button id="ai-key-clear" class="btn btn-danger btn-small">Clear Key</button>
+                    </div>
+
+                    <div class="ai-features-preview">
+                        <h4>Unlock 6 AI tools</h4>
+                        <ul>
+                            <li><strong>✨ AI Build List</strong> — describe your week, get a ready grocery list</li>
+                            <li><strong>✨ Optimize Budget</strong> — hit your target without sacrificing goals</li>
+                            <li><strong>✨ Nutritional Advice</strong> — align your cart with your growth categories</li>
+                            <li><strong>✨ Growth Insights</strong> — patterns and coaching from your shopping history</li>
+                            <li><strong>✨ AI Recipe</strong> — turn a pantry list into a complete recipe</li>
+                            <li><strong>✨ Generate Plan with AI</strong> — describe your goals, fill your entire calendar</li>
+                        </ul>
+                        <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" class="ai-get-key-link">Get an Anthropic API key →</a>
+                    </div>
+                </div>
+            </section>
+
             <!-- View: Meal Plan Overview -->
             <section id="meal-plan-overview" class="view" aria-label="Meal plan overview">
                 <div class="view-header">
@@ -289,9 +536,27 @@
                     <textarea id="meal-plan-notes" placeholder="Any notes for this week's plan..." rows="2" aria-label="Week notes"></textarea>
                 </div>
 
+                <!-- AI: Meal Plan Generator -->
+                <div id="ai-meal-plan-panel" class="ai-panel" hidden>
+                    <div class="ai-panel-prompt">
+                        <label class="ai-panel-label">Describe your goals for this week</label>
+                        <textarea id="ai-meal-plan-input" placeholder="e.g. high protein, stay under $120, 5 home dinners, vegetarian lunches..." rows="3" aria-label="Weekly meal plan goals"></textarea>
+                        <div class="ai-panel-prompt-actions">
+                            <button id="ai-meal-plan-submit" class="btn btn-primary btn-small">Generate Plan</button>
+                            <button id="ai-meal-plan-panel-close" class="btn btn-secondary btn-small">Cancel</button>
+                        </div>
+                    </div>
+                    <div id="ai-meal-plan-result" class="ai-result-text" hidden></div>
+                    <div id="ai-meal-plan-actions" class="ai-panel-actions" hidden>
+                        <button id="ai-meal-plan-apply" class="btn btn-primary btn-small">✓ Apply to Calendar</button>
+                        <button id="ai-meal-plan-discard" class="btn btn-secondary btn-small">Discard</button>
+                    </div>
+                </div>
+
                 <div class="meal-plan-actions">
                     <button id="save-meal-plan-btn" class="btn btn-primary btn-large">Save Plan</button>
                     <button id="generate-list-from-plan-btn" class="btn btn-secondary btn-large">Generate Shopping List</button>
+                    <button id="ai-generate-meal-plan-btn" class="btn btn-ai btn-large" aria-label="AI generate meal plan">✨ Generate Plan with AI</button>
                 </div>
             </section>
 
@@ -340,6 +605,7 @@
     <script src="js/groceryList.js"></script>
     <script src="js/recipe.js"></script>
     <script src="js/mealPlan.js"></script>
+    <script src="js/ai.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

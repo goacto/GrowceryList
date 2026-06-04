@@ -7,10 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v0.4.0
+### Planned for v0.5.0
 - User accounts and authentication
 - Community feed and sharing
 - Multi-device sync
+- Spending analytics dashboard
+
+---
+
+## [0.4.0] - 2026-06-04
+
+### Added — Settings Page & AI Growth Features
+
+**Settings Page (4 tabs)**
+- **Profile** — display name, tagline, growth statement, default growth goals, initials avatar
+- **Features & Benefits** — app overview with feature cards including Pro and Coming Soon badges
+- **Plan** — Free vs Growth Pro comparison with full feature matrix and pricing
+- **AI Settings** — Anthropic API key input with show/hide toggle, status indicator, privacy note, and link to get a key
+
+**6 AI Features powered by Claude**
+- ✨ **AI Build List** (list detail) — describe your week in natural language → AI generates a complete grocery list with growth notes; "Add Items to List" applies it
+- ✨ **Optimize Budget** (list detail) — enter a target budget → AI suggests specific swaps and reductions; streaming advisory output
+- ✨ **Nutritional Advice** (list detail) — AI maps current list items to your growth categories and surfaces gaps
+- ✨ **Growth Insights** (list detail) — AI reflection coach analyzes current list + shopping history and surfaces patterns
+- ✨ **AI Recipe** (recipe overview) — enter available ingredients → AI generates a full recipe; "Create Recipe" pre-populates the recipe form for review before saving
+- ✨ **Generate Plan with AI** (meal plan detail) — describe weekly goals → AI fills the calendar with your saved recipes; "Apply to Calendar" assigns matched ones
+
+**Architecture**
+- New `js/ai.js` — Claude streaming API client + all 6 feature functions, JSON response parser
+- `js/storage.js` — profile CRUD (`getProfile`, `saveProfile`)
+- All AI calls stream token-by-token with a blinking cursor; apply/discard actions shown on completion
+- API key stored only in localStorage, never transmitted to any server
 
 ---
 

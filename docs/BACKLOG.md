@@ -1,6 +1,6 @@
 # GrowceryList - Product Backlog
 
-*Last Updated: June 4, 2026*
+*Last Updated: June 4, 2026 (v0.4.0)*
 
 This backlog tracks all planned features, enhancements, and improvements for GrowceryList. Items are organized by development phase and priority.
 
@@ -84,6 +84,26 @@ This backlog tracks all planned features, enhancements, and improvements for Gro
 - [ ] Adjust recipes for serving size/portions before generating list
 - [ ] Track how recipes make you feel (energy levels, satisfaction, etc.)
 - [ ] Copy plan from previous week
+
+---
+
+## Phase 2.5: Settings & AI (v0.4.0)
+
+### ✅ Completed
+
+**Settings Page**
+- [x] Profile tab: display name, tagline, growth statement, default goals, avatar
+- [x] Features & Benefits tab: feature cards with Pro/Coming Soon badges
+- [x] Plan tab: Free vs Growth Pro comparison table
+- [x] AI Settings tab: API key management, status, privacy note
+
+**AI Features (Claude-powered)**
+- [x] ✨ AI Build List — natural language → grocery list
+- [x] ✨ Optimize Budget — target budget → swap suggestions
+- [x] ✨ Nutritional Advice — cart → nutrition gap analysis
+- [x] ✨ Growth Insights — reflection coach from shopping history
+- [x] ✨ AI Recipe — ingredients → full recipe form
+- [x] ✨ Generate Plan with AI — goals → filled meal calendar
 
 ---
 

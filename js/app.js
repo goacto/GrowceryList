@@ -11,9 +11,15 @@ const App = {
         currentRecipe: null,
         mealPlans: [],
         currentMealPlan: null,
-        mealAssignContext: null, // { dayIndex, mealType }
+        mealAssignContext: null,
+        profile: null,
+        currentSettingsTab: 'profile',
         currentView: 'list-overview',
-        currentItemForNote: null
+        currentItemForNote: null,
+        // pending AI-generated data waiting for user to apply
+        pendingAIList: null,
+        pendingAIMealPlan: null,
+        pendingAIRecipe: null
     },
 
     // Initialize application
@@ -21,6 +27,7 @@ const App = {
         this.loadLists();
         this.loadRecipes();
         this.loadMealPlans();
+        this.state.profile = Storage.getProfile();
         this.bindEvents();
         this.render();
     },
@@ -82,6 +89,10 @@ const App = {
 
         getElement('nav-meal-plan').addEventListener('click', () => {
             this.switchToMealPlans();
+        });
+
+        getElement('nav-settings').addEventListener('click', () => {
+            this.switchToSettings();
         });
 
         // === LIST EVENTS ===
@@ -320,6 +331,129 @@ const App = {
             }
             this.closeMealRecipeModal();
         });
+
+        // === SETTINGS EVENTS ===
+
+        document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.switchSettingsTab(btn.dataset.tab);
+            });
+        });
+
+        getElement('save-profile-btn').addEventListener('click', () => {
+            this.saveProfile();
+        });
+
+        getElement('profile-display-name').addEventListener('input', () => {
+            this.updateAvatarPreview();
+        });
+
+        getElement('ai-key-save').addEventListener('click', () => {
+            const key = getElement('ai-api-key-input').value.trim();
+            if (!key) { Toast.error('Please enter an API key.'); return; }
+            AI.setKey(key);
+            this.renderAIKeyStatus();
+            Toast.success('API key saved!');
+        });
+
+        getElement('ai-key-clear').addEventListener('click', () => {
+            if (confirm('Clear your saved API key?')) {
+                AI.clearKey();
+                getElement('ai-api-key-input').value = '';
+                this.renderAIKeyStatus();
+                Toast.info('API key cleared.');
+            }
+        });
+
+        getElement('ai-key-toggle').addEventListener('click', (e) => {
+            const input = getElement('ai-api-key-input');
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            e.target.textContent = isHidden ? 'Hide' : 'Show';
+        });
+
+        // === AI FEATURE EVENTS ===
+
+        // 1. Smart List Builder
+        getElement('ai-build-list-btn').addEventListener('click', () => {
+            this.toggleAIPanel('ai-list-panel', 'ai-build-list-btn');
+        });
+        getElement('ai-list-panel-close').addEventListener('click', () => {
+            this.hideAIPanel('ai-list-panel');
+        });
+        getElement('ai-list-submit').addEventListener('click', () => {
+            this.runAIBuildList();
+        });
+        getElement('ai-list-apply').addEventListener('click', () => {
+            this.applyAIList();
+        });
+        getElement('ai-list-discard').addEventListener('click', () => {
+            this.hideAIPanel('ai-list-panel');
+        });
+
+        // 2. Budget Optimizer
+        getElement('ai-budget-btn').addEventListener('click', () => {
+            this.toggleAIPanel('ai-budget-panel', 'ai-budget-btn');
+        });
+        getElement('ai-budget-panel-close').addEventListener('click', () => {
+            this.hideAIPanel('ai-budget-panel');
+        });
+        getElement('ai-budget-submit').addEventListener('click', () => {
+            this.runAIBudgetOptimizer();
+        });
+        getElement('ai-budget-discard').addEventListener('click', () => {
+            this.hideAIPanel('ai-budget-panel');
+        });
+
+        // 3. Nutritional Advisor
+        getElement('ai-nutrition-btn').addEventListener('click', () => {
+            this.runAINutritionalAdvice();
+        });
+        getElement('ai-nutrition-discard').addEventListener('click', () => {
+            this.hideAIPanel('ai-nutrition-panel');
+        });
+
+        // 4. Reflection Coach
+        getElement('ai-reflection-btn').addEventListener('click', () => {
+            this.runAIReflectionCoach();
+        });
+        getElement('ai-reflection-discard').addEventListener('click', () => {
+            this.hideAIPanel('ai-reflection-panel');
+        });
+
+        // 5. AI Recipe
+        getElement('ai-recipe-btn').addEventListener('click', () => {
+            this.toggleAIPanel('ai-recipe-panel', 'ai-recipe-btn');
+        });
+        getElement('ai-recipe-panel-close').addEventListener('click', () => {
+            this.hideAIPanel('ai-recipe-panel');
+        });
+        getElement('ai-recipe-submit').addEventListener('click', () => {
+            this.runAIGenerateRecipe();
+        });
+        getElement('ai-recipe-create').addEventListener('click', () => {
+            this.applyAIRecipe();
+        });
+        getElement('ai-recipe-discard').addEventListener('click', () => {
+            this.hideAIPanel('ai-recipe-panel');
+        });
+
+        // 6. AI Meal Plan Generator
+        getElement('ai-generate-meal-plan-btn').addEventListener('click', () => {
+            this.toggleAIPanel('ai-meal-plan-panel', 'ai-generate-meal-plan-btn');
+        });
+        getElement('ai-meal-plan-panel-close').addEventListener('click', () => {
+            this.hideAIPanel('ai-meal-plan-panel');
+        });
+        getElement('ai-meal-plan-submit').addEventListener('click', () => {
+            this.runAIGenerateMealPlan();
+        });
+        getElement('ai-meal-plan-apply').addEventListener('click', () => {
+            this.applyAIMealPlan();
+        });
+        getElement('ai-meal-plan-discard').addEventListener('click', () => {
+            this.hideAIPanel('ai-meal-plan-panel');
+        });
     },
 
     // Add item to current list
@@ -392,6 +526,8 @@ const App = {
             this.renderMealPlanOverview();
         } else if (this.state.currentView === 'meal-plan-detail') {
             this.renderMealPlanDetail();
+        } else if (this.state.currentView === 'settings-view') {
+            this.renderSettings();
         }
     },
 
@@ -588,6 +724,13 @@ const App = {
         this.loadMealPlans();
         this.showView('meal-plan-overview');
         this.renderMealPlanOverview();
+    },
+
+    switchToSettings() {
+        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+        getElement('nav-settings').classList.add('active');
+        this.showView('settings-view');
+        this.renderSettings();
     },
 
     // === RECIPE METHODS ===
@@ -845,6 +988,297 @@ const App = {
                 this.renderTags();
             });
         });
+    },
+
+    // === SETTINGS METHODS ===
+
+    renderSettings() {
+        this.renderProfilePanel();
+        this.renderAIKeyStatus();
+    },
+
+    renderProfilePanel() {
+        const p = this.state.profile || Storage.getProfile();
+        getElement('profile-display-name').value = p.displayName || '';
+        getElement('profile-tagline').value = p.tagline || '';
+        getElement('profile-growth-statement').value = p.growthStatement || '';
+        document.querySelectorAll('.profile-goal').forEach(cb => {
+            cb.checked = (p.goals || []).includes(cb.value);
+        });
+        this.updateAvatarPreview();
+    },
+
+    updateAvatarPreview() {
+        const name = getElement('profile-display-name').value.trim();
+        const initials = name
+            ? name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+            : '?';
+        getElement('profile-avatar').textContent = initials;
+    },
+
+    saveProfile() {
+        const goals = [];
+        document.querySelectorAll('.profile-goal:checked').forEach(cb => goals.push(cb.value));
+        const profile = {
+            displayName: getElement('profile-display-name').value.trim(),
+            tagline:     getElement('profile-tagline').value.trim(),
+            growthStatement: getElement('profile-growth-statement').value.trim(),
+            goals
+        };
+        Storage.saveProfile(profile);
+        this.state.profile = profile;
+        Toast.success('Profile saved!');
+    },
+
+    switchSettingsTab(tab) {
+        this.state.currentSettingsTab = tab;
+        document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+            const active = btn.dataset.tab === tab;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-selected', active);
+        });
+        document.querySelectorAll('.settings-panel').forEach(panel => {
+            panel.hidden = !panel.id.endsWith(tab);
+        });
+        if (tab === 'ai') this.renderAIKeyStatus();
+    },
+
+    renderAIKeyStatus() {
+        const el = getElement('ai-key-status');
+        if (!el) return;
+        if (AI.isConfigured()) {
+            const key = AI.getKey();
+            el.className = 'ai-key-status configured';
+            el.textContent = `✓ API key configured (${key.slice(0, 12)}…)`;
+            getElement('ai-api-key-input').value = key;
+        } else {
+            el.className = 'ai-key-status not-configured';
+            el.textContent = '⚠ No API key — AI features are disabled. Add your key below.';
+        }
+    },
+
+    // === AI HELPER METHODS ===
+
+    // Gate: check key is set, show toast and return false if not
+    requireAIKey() {
+        if (!AI.isConfigured()) {
+            Toast.error('AI features need an API key. Go to Settings → AI Settings.');
+            return false;
+        }
+        return true;
+    },
+
+    // Show / hide a named AI panel; hides sibling panels in same view
+    toggleAIPanel(panelId, btnId) {
+        const panel = getElement(panelId);
+        if (!panel) return;
+        const isHidden = panel.hidden;
+        // Hide all AI panels in the page first
+        document.querySelectorAll('.ai-panel').forEach(p => { p.hidden = true; });
+        panel.hidden = !isHidden;
+    },
+
+    hideAIPanel(panelId) {
+        const panel = getElement(panelId);
+        if (panel) panel.hidden = true;
+    },
+
+    // Stream AI output into a result div; disable/re-enable a submit btn
+    async streamToPanel(resultId, actionsId, submitBtnId, streamFn) {
+        const resultEl = getElement(resultId);
+        const actionsEl = actionsId ? getElement(actionsId) : null;
+        const submitBtn = submitBtnId ? getElement(submitBtnId) : null;
+
+        resultEl.textContent = '';
+        resultEl.classList.remove('ai-done');
+        resultEl.hidden = false;
+        if (actionsEl) actionsEl.hidden = true;
+        if (submitBtn) submitBtn.disabled = true;
+
+        try {
+            await streamFn(
+                (delta) => { resultEl.insertAdjacentText('beforeend', delta); },
+                (_full) => {
+                    resultEl.classList.add('ai-done');
+                    if (actionsEl) actionsEl.hidden = false;
+                    if (submitBtn) submitBtn.disabled = false;
+                }
+            );
+        } catch (err) {
+            resultEl.classList.add('ai-done');
+            resultEl.textContent = `Error: ${err.message}`;
+            if (submitBtn) submitBtn.disabled = false;
+        }
+    },
+
+    // === AI FEATURE 1: Smart List Builder ===
+    async runAIBuildList() {
+        if (!this.requireAIKey()) return;
+        const desc = getElement('ai-list-input').value.trim();
+        if (!desc) { Toast.error('Please describe what you need.'); return; }
+
+        this.state.pendingAIList = null;
+
+        await this.streamToPanel('ai-list-result', 'ai-list-actions', 'ai-list-submit', (onDelta, onDone) => {
+            return AI.buildShoppingList(desc, onDelta, (full) => {
+                try {
+                    this.state.pendingAIList = AI.parseJSON(full);
+                } catch (_) {
+                    this.state.pendingAIList = null;
+                    Toast.error('Could not parse AI response. Try again.');
+                }
+                onDone(full);
+            });
+        });
+    },
+
+    applyAIList() {
+        const items = this.state.pendingAIList;
+        if (!Array.isArray(items) || !this.state.currentList) return;
+        items.forEach(item => {
+            GroceryList.addItem(this.state.currentList, item.name, String(item.quantity || '1'), item.estimatedCost || 0);
+            const last = this.state.currentList.items[this.state.currentList.items.length - 1];
+            last.growthNote = item.growthNote || '';
+        });
+        this.renderItemsList();
+        this.hideAIPanel('ai-list-panel');
+        this.state.pendingAIList = null;
+        Toast.success(`Added ${items.length} AI-suggested items to your list!`);
+    },
+
+    // === AI FEATURE 2: Budget Optimizer ===
+    async runAIBudgetOptimizer() {
+        if (!this.requireAIKey()) return;
+        const target = parseFloat(getElement('ai-budget-target').value);
+        if (!target || target <= 0) { Toast.error('Please enter a valid budget.'); return; }
+        if (!this.state.currentList) return;
+
+        await this.streamToPanel('ai-budget-result', 'ai-budget-actions', 'ai-budget-submit', (onDelta, onDone) => {
+            return AI.optimizeBudget(this.state.currentList, target, onDelta, onDone);
+        });
+    },
+
+    // === AI FEATURE 3: Nutritional Advisor ===
+    async runAINutritionalAdvice() {
+        if (!this.requireAIKey()) return;
+        if (!this.state.currentList) return;
+        const goals = this.state.currentList.growthReflection.categories;
+        this.toggleAIPanel('ai-nutrition-panel', null);
+
+        await this.streamToPanel('ai-nutrition-result', null, null, (onDelta, onDone) => {
+            return AI.nutritionalAdvice(this.state.currentList, goals, onDelta, onDone);
+        });
+    },
+
+    // === AI FEATURE 4: Reflection Coach ===
+    async runAIReflectionCoach() {
+        if (!this.requireAIKey()) return;
+        if (!this.state.currentList) return;
+        const past = this.state.lists.filter(l => l.id !== this.state.currentList.id);
+        this.toggleAIPanel('ai-reflection-panel', null);
+
+        await this.streamToPanel('ai-reflection-result', null, null, (onDelta, onDone) => {
+            return AI.analyzeReflection(this.state.currentList, past, onDelta, onDone);
+        });
+    },
+
+    // === AI FEATURE 5: Recipe from Ingredients ===
+    async runAIGenerateRecipe() {
+        if (!this.requireAIKey()) return;
+        const ingredients = getElement('ai-recipe-input').value.trim();
+        if (!ingredients) { Toast.error('Please list some ingredients.'); return; }
+
+        this.state.pendingAIRecipe = null;
+
+        await this.streamToPanel('ai-recipe-result', 'ai-recipe-actions', 'ai-recipe-submit', (onDelta, onDone) => {
+            return AI.generateRecipe(ingredients, onDelta, (full) => {
+                try {
+                    this.state.pendingAIRecipe = AI.parseJSON(full);
+                } catch (_) {
+                    this.state.pendingAIRecipe = null;
+                    Toast.error('Could not parse recipe. Try again.');
+                }
+                onDone(full);
+            });
+        });
+    },
+
+    applyAIRecipe() {
+        const data = this.state.pendingAIRecipe;
+        if (!data) return;
+
+        const recipe = Recipe.createRecipe();
+        recipe.title       = data.title       || 'AI Recipe';
+        recipe.description = data.description || '';
+        recipe.servings    = parseInt(data.servings)  || 4;
+        recipe.prepTime    = parseInt(data.prepTime)  || 0;
+        recipe.cookTime    = parseInt(data.cookTime)  || 0;
+        recipe.growthNote  = data.growthNote   || '';
+        recipe.tags        = Array.isArray(data.tags) ? data.tags : [];
+        recipe.instructions = Array.isArray(data.instructions) ? data.instructions : [];
+
+        (data.ingredients || []).forEach(ing => {
+            Recipe.addIngredient(recipe, ing.name, String(ing.quantity || ''), ing.unit || '', ing.optional || false);
+        });
+
+        this.state.currentRecipe = recipe;
+        this.hideAIPanel('ai-recipe-panel');
+        this.state.pendingAIRecipe = null;
+
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        getElement('nav-recipes').classList.add('active');
+        this.showView('recipe-detail');
+        this.renderRecipeDetail();
+        Toast.success('AI recipe loaded — review and save when ready!');
+    },
+
+    // === AI FEATURE 6: Meal Plan Generator ===
+    async runAIGenerateMealPlan() {
+        if (!this.requireAIKey()) return;
+        const goals = getElement('ai-meal-plan-input').value.trim();
+        if (!goals) { Toast.error('Please describe your goals for this week.'); return; }
+
+        this.state.pendingAIMealPlan = null;
+
+        await this.streamToPanel('ai-meal-plan-result', 'ai-meal-plan-actions', 'ai-meal-plan-submit', (onDelta, onDone) => {
+            return AI.generateMealPlan(goals, this.state.recipes, onDelta, (full) => {
+                try {
+                    this.state.pendingAIMealPlan = AI.parseJSON(full);
+                } catch (_) {
+                    this.state.pendingAIMealPlan = null;
+                    Toast.error('Could not parse meal plan. Try again.');
+                }
+                onDone(full);
+            });
+        });
+    },
+
+    applyAIMealPlan() {
+        const data = this.state.pendingAIMealPlan;
+        const plan = this.state.currentMealPlan;
+        if (!data || !plan) return;
+
+        const recipeTitleMap = {};
+        this.state.recipes.forEach(r => { recipeTitleMap[r.title.toLowerCase()] = r.id; });
+
+        const dayKeys = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+        dayKeys.forEach((dayKey, dayIndex) => {
+            const dayData = data[dayKey];
+            if (!dayData) return;
+            MealPlan.MEAL_TYPES.forEach(mealType => {
+                const title = dayData[mealType];
+                if (!title) return;
+                const recipeId = recipeTitleMap[title.toLowerCase()];
+                if (recipeId) {
+                    MealPlan.assignMeal(plan, dayIndex, mealType, recipeId);
+                }
+            });
+        });
+
+        this.renderMealPlanCalendar();
+        this.hideAIPanel('ai-meal-plan-panel');
+        this.state.pendingAIMealPlan = null;
+        Toast.success('AI meal plan applied! Unmatched suggestions were skipped — add those recipes to use them next time.');
     },
 
     // === MEAL PLAN METHODS ===
