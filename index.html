@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="GrowceryList - Fuel your growth journey through mindful nutrition">
+    <title>GrowceryList - Mindful Grocery Planning</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="header-branding">
+                    <h1 class="logo">GrowceryList</h1>
+                    <p class="tagline">Fuel your growth journey</p>
+                </div>
+                <nav class="main-nav" aria-label="Main navigation">
+                    <button id="nav-lists" class="nav-btn active" aria-label="View grocery lists">Lists</button>
+                    <button id="nav-recipes" class="nav-btn" aria-label="View recipes">Recipes</button>
+                    <button id="nav-meal-plan" class="nav-btn" aria-label="View meal planner">Meal Plan</button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main App Container -->
+    <main class="app-main">
+        <div class="container">
+
+            <!-- View: List Overview -->
+            <section id="list-overview" class="view active" aria-label="Grocery lists overview">
+                <div class="view-header">
+                    <h2>Your Grocery Lists</h2>
+                    <div class="header-actions">
+                        <button id="new-list-btn" class="btn btn-primary" aria-label="Create new grocery list">+ New List</button>
+                        <button id="export-btn" class="btn btn-secondary" aria-label="Export all lists as JSON backup">Export Data</button>
+                        <button id="import-btn" class="btn btn-secondary" aria-label="Import lists from JSON file">Import Data</button>
+                    </div>
+                </div>
+
+                <div id="lists-container" class="lists-grid" role="list" aria-label="Your saved grocery lists">
+                    <!-- Lists will be rendered here -->
+                </div>
+
+                <div id="empty-state" class="empty-state" role="status">
+                    <p>No grocery lists yet. Create your first one!</p>
+                </div>
+            </section>
+
+            <!-- View: List Detail/Edit -->
+            <section id="list-detail" class="view" aria-label="Edit grocery list">
+                <div class="view-header">
+                    <button id="back-btn" class="btn btn-secondary" aria-label="Go back to lists overview">← Back</button>
+                    <h2 id="list-title-display">List Title</h2>
+                    <button id="delete-list-btn" class="btn btn-danger" aria-label="Delete this grocery list">Delete List</button>
+                </div>
+
+                <!-- List Meta Information -->
+                <div class="list-meta">
+                    <label for="list-title-input" class="sr-only">List Title</label>
+                    <input type="text" id="list-title-input" placeholder="List Title" class="input-title" aria-label="List title">
+                    <label for="list-date-input" class="sr-only">Shopping Date</label>
+                    <input type="date" id="list-date-input" class="input-date" aria-label="Shopping date">
+                </div>
+
+                <!-- Growth Reflection (Pre-Shopping) -->
+                <div class="growth-section">
+                    <h3 id="pre-shop-label">Pre-Shopping Reflection</h3>
+                    <label for="pre-shop-reflection" class="sr-only">Pre-shopping reflection</label>
+                    <textarea id="pre-shop-reflection"
+                              placeholder="What are your intentions for this grocery trip? How does it support your growth?"
+                              rows="3"
+                              aria-labelledby="pre-shop-label"></textarea>
+                </div>
+
+                <!-- Items Section -->
+                <div class="items-section">
+                    <h3>Items</h3>
+
+                    <!-- Add Item Form -->
+                    <div class="add-item-form" role="form" aria-label="Add new item to list">
+                        <label for="item-name" class="sr-only">Item name</label>
+                        <input type="text" id="item-name" placeholder="Item name" class="input-item" aria-label="Item name" aria-required="true">
+                        <label for="item-quantity" class="sr-only">Quantity</label>
+                        <input type="text" id="item-quantity" placeholder="Qty" class="input-qty" aria-label="Quantity">
+                        <label for="item-cost" class="sr-only">Estimated cost</label>
+                        <input type="number" id="item-cost" placeholder="$" step="0.01" class="input-cost" aria-label="Estimated cost in dollars">
+                        <button id="add-item-btn" class="btn btn-small" aria-label="Add item to list">Add</button>
+                    </div>
+
+                    <!-- Items List -->
+                    <ul id="items-list" class="items-list" role="list" aria-label="Items in this grocery list">
+                        <!-- Items will be rendered here -->
+                    </ul>
+
+                    <!-- Cost Summary -->
+                    <div class="cost-summary">
+                        <p>Estimated Total: $<span id="estimated-total">0.00</span></p>
+                        <p>Actual Total: $<span id="actual-total">0.00</span></p>
+                    </div>
+                </div>
+
+                <!-- Post-Shopping Reflection -->
+                <div class="growth-section">
+                    <h3>Post-Shopping Reflection</h3>
+                    <div class="reflection-meta">
+                        <label>
+                            <span>Shopping Method:</span>
+                            <select id="shopping-method" aria-label="Shopping method used">
+                                <option value="">Select...</option>
+                                <option value="in-store">In-Store</option>
+                                <option value="curbside-pickup">Curbside Pickup</option>
+                                <option value="delivery">Delivery</option>
+                            </select>
+                        </label>
+                        <label>
+                            <span>Active Time Spent:</span>
+                            <input type="number" id="time-spent" placeholder="Minutes" min="0" aria-label="Active time spent shopping in minutes">
+                        </label>
+                    </div>
+                    <label for="post-shop-reflection" class="sr-only">Post-shopping reflection</label>
+                    <textarea id="post-shop-reflection"
+                              placeholder="How did it go? Did you stick to your plan? Any insights?"
+                              rows="3"
+                              aria-label="Post-shopping reflection"></textarea>
+
+                    <div class="growth-categories">
+                        <label>Growth Categories:</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" value="health"> Health</label>
+                            <label><input type="checkbox" value="energy"> Energy</label>
+                            <label><input type="checkbox" value="family"> Family</label>
+                            <label><input type="checkbox" value="budget"> Budget</label>
+                            <label><input type="checkbox" value="environment"> Environment</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <button id="save-list-btn" class="btn btn-primary btn-large">Save List</button>
+            </section>
+
+            <!-- View: Recipe Overview -->
+            <section id="recipe-overview" class="view" aria-label="Recipes overview">
+                <div class="view-header">
+                    <h2>Your Recipes</h2>
+                    <button id="new-recipe-btn" class="btn btn-primary" aria-label="Create new recipe">+ New Recipe</button>
+                </div>
+
+                <div id="recipes-container" class="lists-grid" role="list" aria-label="Your saved recipes">
+                    <!-- Recipes will be rendered here -->
+                </div>
+
+                <div id="recipes-empty-state" class="empty-state" role="status">
+                    <p>No recipes yet. Create your first one!</p>
+                </div>
+            </section>
+
+            <!-- View: Recipe Detail/Edit -->
+            <section id="recipe-detail" class="view" aria-label="Edit recipe">
+                <div class="view-header">
+                    <button id="recipe-back-btn" class="btn btn-secondary" aria-label="Go back to recipes">← Back</button>
+                    <h2 id="recipe-title-display">Recipe Title</h2>
+                    <button id="delete-recipe-btn" class="btn btn-danger" aria-label="Delete this recipe">Delete Recipe</button>
+                </div>
+
+                <!-- Recipe Meta Information -->
+                <div class="recipe-meta">
+                    <label for="recipe-title-input" class="sr-only">Recipe Title</label>
+                    <input type="text" id="recipe-title-input" placeholder="Recipe Title" class="input-title" aria-label="Recipe title">
+
+                    <div class="recipe-meta-grid">
+                        <label>
+                            <span>Servings:</span>
+                            <input type="number" id="recipe-servings" min="1" value="4" aria-label="Number of servings">
+                        </label>
+                        <label>
+                            <span>Prep Time (min):</span>
+                            <input type="number" id="recipe-prep-time" min="0" placeholder="Minutes" aria-label="Preparation time in minutes">
+                        </label>
+                        <label>
+                            <span>Cook Time (min):</span>
+                            <input type="number" id="recipe-cook-time" min="0" placeholder="Minutes" aria-label="Cooking time in minutes">
+                        </label>
+                    </div>
+
+                    <label for="recipe-description">
+                        <span>Description:</span>
+                        <textarea id="recipe-description" placeholder="Brief description of the recipe..." rows="2" aria-label="Recipe description"></textarea>
+                    </label>
+                </div>
+
+                <!-- Growth Note -->
+                <div class="growth-section">
+                    <h3>Growth Note</h3>
+                    <label for="recipe-growth-note" class="sr-only">Why this recipe supports your growth</label>
+                    <textarea id="recipe-growth-note"
+                              placeholder="Why does this recipe support your growth journey? (e.g., high protein for energy, anti-inflammatory ingredients, family bonding meal...)"
+                              rows="2"
+                              aria-label="Recipe growth note"></textarea>
+                </div>
+
+                <!-- Ingredients Section -->
+                <div class="recipe-section">
+                    <h3>Ingredients</h3>
+                    <div class="add-ingredient-form">
+                        <input type="text" id="ingredient-name" placeholder="Ingredient name" aria-label="Ingredient name">
+                        <input type="text" id="ingredient-quantity" placeholder="Amount" aria-label="Ingredient quantity">
+                        <input type="text" id="ingredient-unit" placeholder="Unit" aria-label="Ingredient unit">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="ingredient-optional" aria-label="Mark as optional">
+                            <span>Optional</span>
+                        </label>
+                        <button id="add-ingredient-btn" class="btn btn-small">Add</button>
+                    </div>
+
+                    <ul id="ingredients-list" class="ingredients-list" role="list">
+                        <!-- Ingredients will be rendered here -->
+                    </ul>
+                </div>
+
+                <!-- Instructions Section -->
+                <div class="recipe-section">
+                    <h3>Instructions</h3>
+                    <div class="add-instruction-form">
+                        <textarea id="instruction-text" placeholder="Add a step..." rows="2" aria-label="Instruction step"></textarea>
+                        <button id="add-instruction-btn" class="btn btn-small">Add Step</button>
+                    </div>
+
+                    <ol id="instructions-list" class="instructions-list" role="list">
+                        <!-- Instructions will be rendered here -->
+                    </ol>
+                </div>
+
+                <!-- Tags Section -->
+                <div class="recipe-section">
+                    <h3>Tags</h3>
+                    <div class="add-tag-form">
+                        <input type="text" id="tag-input" placeholder="Add tag (e.g., vegetarian, quick, high-protein)" aria-label="Recipe tag">
+                        <button id="add-tag-btn" class="btn btn-small">Add Tag</button>
+                    </div>
+                    <div id="tags-container" class="tags-container">
+                        <!-- Tags will be rendered here -->
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="recipe-actions">
+                    <button id="save-recipe-btn" class="btn btn-primary btn-large">Save Recipe</button>
+                    <button id="add-to-list-btn" class="btn btn-secondary btn-large">Add to Shopping List</button>
+                </div>
+            </section>
+
+            <!-- View: Meal Plan Overview -->
+            <section id="meal-plan-overview" class="view" aria-label="Meal plan overview">
+                <div class="view-header">
+                    <h2>Meal Plans</h2>
+                    <button id="new-meal-plan-btn" class="btn btn-primary" aria-label="Create new meal plan">+ This Week</button>
+                </div>
+
+                <div id="meal-plans-container" class="lists-grid" role="list" aria-label="Your saved meal plans">
+                    <!-- Meal plans will be rendered here -->
+                </div>
+
+                <div id="meal-plans-empty-state" class="empty-state" role="status">
+                    <p>No meal plans yet. Plan this week's meals!</p>
+                </div>
+            </section>
+
+            <!-- View: Meal Plan Detail (Weekly Calendar) -->
+            <section id="meal-plan-detail" class="view" aria-label="Edit meal plan">
+                <div class="view-header">
+                    <button id="meal-plan-back-btn" class="btn btn-secondary" aria-label="Go back to meal plans">← Back</button>
+                    <h2 id="meal-plan-week-label">Week of ...</h2>
+                    <button id="delete-meal-plan-btn" class="btn btn-danger" aria-label="Delete this meal plan">Delete Plan</button>
+                </div>
+
+                <!-- Weekly Calendar Grid -->
+                <div id="meal-plan-calendar" class="meal-plan-calendar" aria-label="Weekly meal planning calendar">
+                    <!-- Rendered by JS -->
+                </div>
+
+                <!-- Notes -->
+                <div class="growth-section">
+                    <h3>Week Notes</h3>
+                    <label for="meal-plan-notes" class="sr-only">Notes for this week</label>
+                    <textarea id="meal-plan-notes" placeholder="Any notes for this week's plan..." rows="2" aria-label="Week notes"></textarea>
+                </div>
+
+                <div class="meal-plan-actions">
+                    <button id="save-meal-plan-btn" class="btn btn-primary btn-large">Save Plan</button>
+                    <button id="generate-list-from-plan-btn" class="btn btn-secondary btn-large">Generate Shopping List</button>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div class="container">
+            <p>Part of the goacto ecosystem - Growing ourselves, contributing to others</p>
+        </div>
+    </footer>
+
+    <!-- Modal for Meal Recipe Selection -->
+    <div id="meal-recipe-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="meal-recipe-modal-title">
+        <div class="modal-content">
+            <span class="modal-close" id="meal-recipe-modal-close">&times;</span>
+            <h3 id="meal-recipe-modal-title">Choose a Recipe</h3>
+            <p id="meal-recipe-slot-label" class="modal-subtitle"></p>
+            <ul id="meal-recipe-list" class="meal-recipe-select-list">
+                <!-- Recipe options rendered by JS -->
+            </ul>
+            <button id="meal-recipe-none-btn" class="btn btn-secondary btn-small">Remove / No Recipe</button>
+        </div>
+    </div>
+
+    <!-- Modal for Item Notes -->
+    <div id="item-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h3>Why did you choose this?</h3>
+            <textarea id="item-growth-note" placeholder="How does this item support your growth?"></textarea>
+            <button id="save-item-note" class="btn btn-primary">Save Note</button>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+
+    <!-- Hidden file input for import -->
+    <input type="file" id="import-file-input" accept=".json" style="display: none;">
+
+    <!-- JavaScript -->
+    <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/groceryList.js"></script>
+    <script src="js/recipe.js"></script>
+    <script src="js/mealPlan.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
