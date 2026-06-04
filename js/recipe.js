@@ -8,7 +8,7 @@ const Recipe = {
     createRecipe() {
         return {
             id: generateId(),
-            title: 'New Recipe',
+            title: '',
             description: '',
             servings: 4,
             prepTime: 0,  // minutes

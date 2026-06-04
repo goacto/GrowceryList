@@ -39,6 +39,7 @@
                     <button id="nav-meal-plan" class="nav-btn" aria-label="View meal planner">Meal Plan</button>
                     <button id="nav-settings" class="nav-btn" aria-label="Settings">⚙ Settings</button>
                 </nav>
+                <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle dark mode" title="Toggle dark mode">🌙</button>
             </div>
         </div>
     </header>
@@ -297,9 +298,9 @@
                 <div class="recipe-section">
                     <h3>Ingredients</h3>
                     <div class="add-ingredient-form">
-                        <input type="text" id="ingredient-name" placeholder="Ingredient name" aria-label="Ingredient name">
-                        <input type="text" id="ingredient-quantity" placeholder="Amount" aria-label="Ingredient quantity">
-                        <input type="text" id="ingredient-unit" placeholder="Unit" aria-label="Ingredient unit">
+                        <input type="text" id="ingredient-name" placeholder="Ingredient name" aria-label="Ingredient name" autocomplete="off">
+                        <input type="text" id="ingredient-quantity" placeholder="Amount" aria-label="Ingredient quantity" autocomplete="off">
+                        <input type="text" id="ingredient-unit" placeholder="Unit (cup, oz, tsp…)" aria-label="Ingredient unit" autocomplete="off">
                         <label class="checkbox-label">
                             <input type="checkbox" id="ingredient-optional" aria-label="Mark as optional">
                             <span>Optional</span>
@@ -640,6 +641,30 @@
             <p>Part of the goacto ecosystem - Growing ourselves, contributing to others</p>
         </div>
     </footer>
+
+    <!-- In-App Confirmation Modal (replaces all browser confirm() dialogs) -->
+    <div id="confirm-modal" class="modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-msg">
+        <div class="modal-content confirm-modal-content">
+            <p id="confirm-modal-msg" class="confirm-modal-msg"></p>
+            <div class="confirm-modal-actions">
+                <button id="confirm-modal-ok" class="btn btn-danger">Delete</button>
+                <button id="confirm-modal-cancel" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- List Select Modal (replaces prompt() in Add Recipe to List) -->
+    <div id="list-select-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="list-select-title">
+        <div class="modal-content">
+            <span class="modal-close" id="list-select-close">&times;</span>
+            <h3 id="list-select-title">Add Ingredients to a List</h3>
+            <p class="modal-subtitle">Choose an existing list or create a new one.</p>
+            <ul id="list-select-options" class="meal-recipe-select-list" role="list">
+                <!-- options rendered by JS -->
+            </ul>
+            <button id="list-select-new" class="btn btn-secondary btn-small" style="margin-top:8px">+ New List</button>
+        </div>
+    </div>
 
     <!-- Modal for Meal Recipe Selection -->
     <div id="meal-recipe-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="meal-recipe-modal-title">

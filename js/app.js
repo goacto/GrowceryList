@@ -24,14 +24,32 @@ const App = {
 
     // Initialize application
     init() {
-        AI.migrate();                        // one-time legacy key migration
+        AI.migrate();
         this.loadLists();
         this.loadRecipes();
         this.loadMealPlans();
         this.state.profile = Storage.getProfile();
+        this.initTheme();
         this.bindEvents();
         this.render();
         this.initSplash();
+    },
+
+    // Dark / light mode
+    initTheme() {
+        const saved = localStorage.getItem('growcerylist_theme') || 'light';
+        this.applyTheme(saved);
+        getElement('theme-toggle').addEventListener('click', () => {
+            const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+            this.applyTheme(next);
+            localStorage.setItem('growcerylist_theme', next);
+        });
+    },
+
+    applyTheme(theme) {
+        document.documentElement.dataset.theme = theme;
+        const btn = getElement('theme-toggle');
+        if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
     },
 
     // Dismiss splash after animations complete
@@ -65,7 +83,7 @@ const App = {
 
         const errors = GroceryList.validate(this.state.currentList);
         if (errors.length > 0) {
-            Toast.error('Please fix the following errors:\n' + errors.join('\n'));
+            Toast.error(errors.join(' • '));
             return;
         }
 
@@ -87,8 +105,48 @@ const App = {
         this.render();
     },
 
+    // Promise-based in-app confirmation (replaces browser confirm())
+    showConfirm(message, okLabel = 'Delete') {
+        return new Promise(resolve => {
+            const modal   = getElement('confirm-modal');
+            const msgEl   = getElement('confirm-modal-msg');
+            const okBtn   = getElement('confirm-modal-ok');
+            const cancelBtn = getElement('confirm-modal-cancel');
+            msgEl.textContent  = message;
+            okBtn.textContent  = okLabel;
+            show(modal);
+            okBtn.focus();
+            const finish = (result) => {
+                hide(modal);
+                okBtn.removeEventListener('click', onOk);
+                cancelBtn.removeEventListener('click', onCancel);
+                resolve(result);
+            };
+            const onOk     = () => finish(true);
+            const onCancel = () => finish(false);
+            okBtn.addEventListener('click', onOk);
+            cancelBtn.addEventListener('click', onCancel);
+        });
+    },
+
     // Bind event listeners
     bindEvents() {
+        // ── Global: Escape closes any open modal ──────────────────────────────
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            const modals = ['item-modal', 'meal-recipe-modal', 'confirm-modal', 'list-select-modal'];
+            modals.forEach(id => { const m = getElement(id); if (m && m.classList.contains('active')) hide(m); });
+        });
+
+        // ── Global: backdrop click closes modals ──────────────────────────────
+        ['item-modal', 'meal-recipe-modal', 'list-select-modal'].forEach(id => {
+            const m = getElement(id);
+            if (m) m.addEventListener('click', (e) => { if (e.target === m) hide(m); });
+        });
+
+        // ── List-select modal ─────────────────────────────────────────────────
+        getElement('list-select-close').addEventListener('click', () => hide(getElement('list-select-modal')));
+
         // Navigation
         getElement('nav-lists').addEventListener('click', () => {
             this.switchToLists();
@@ -126,26 +184,21 @@ const App = {
         });
 
         // Delete list button
-        getElement('delete-list-btn').addEventListener('click', () => {
-            if (confirm('Are you sure you want to delete this list?')) {
+        getElement('delete-list-btn').addEventListener('click', async () => {
+            const ok = await this.showConfirm('Delete this grocery list? This cannot be undone.');
+            if (ok) {
                 Storage.deleteList(this.state.currentList.id);
                 this.loadLists();
                 this.showView('list-overview');
                 this.render();
-                Toast.success('List deleted successfully!');
+                Toast.success('List deleted.');
             }
         });
 
-        // Add item button
-        getElement('add-item-btn').addEventListener('click', () => {
-            this.addItem();
-        });
-
-        // Add item on Enter key
-        getElement('item-name').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.addItem();
-            }
+        // Add item button + Enter key on any item field
+        getElement('add-item-btn').addEventListener('click', () => this.addItem());
+        ['item-name', 'item-quantity', 'item-cost'].forEach(id => {
+            getElement(id).addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.addItem(); } });
         });
 
         // List title and date inputs (auto-save)
@@ -231,13 +284,14 @@ const App = {
         });
 
         // Delete recipe button
-        getElement('delete-recipe-btn').addEventListener('click', () => {
-            if (confirm('Are you sure you want to delete this recipe?')) {
+        getElement('delete-recipe-btn').addEventListener('click', async () => {
+            const ok = await this.showConfirm('Delete this recipe? This cannot be undone.');
+            if (ok) {
                 Storage.deleteRecipe(this.state.currentRecipe.id);
                 this.loadRecipes();
                 this.showView('recipe-overview');
                 this.render();
-                Toast.success('Recipe deleted successfully!');
+                Toast.success('Recipe deleted.');
             }
         });
 
@@ -266,14 +320,16 @@ const App = {
             this.state.currentRecipe.growthNote = e.target.value;
         }, 300));
 
-        // Add ingredient
-        getElement('add-ingredient-btn').addEventListener('click', () => {
-            this.addIngredient();
+        // Add ingredient (button + Enter on any field)
+        getElement('add-ingredient-btn').addEventListener('click', () => this.addIngredient());
+        ['ingredient-name', 'ingredient-quantity', 'ingredient-unit'].forEach(id => {
+            getElement(id).addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); this.addIngredient(); } });
         });
 
-        // Add instruction
-        getElement('add-instruction-btn').addEventListener('click', () => {
-            this.addInstruction();
+        // Add instruction (button + Enter on textarea via Ctrl+Enter to allow newlines)
+        getElement('add-instruction-btn').addEventListener('click', () => this.addInstruction());
+        getElement('instruction-text').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.addInstruction(); }
         });
 
         // Add tag
@@ -309,8 +365,9 @@ const App = {
             this.saveCurrentMealPlan();
         });
 
-        getElement('delete-meal-plan-btn').addEventListener('click', () => {
-            if (confirm('Delete this meal plan?')) {
+        getElement('delete-meal-plan-btn').addEventListener('click', async () => {
+            const ok = await this.showConfirm('Delete this meal plan? This cannot be undone.');
+            if (ok) {
                 Storage.deleteMealPlan(this.state.currentMealPlan.id);
                 this.loadMealPlans();
                 this.showView('meal-plan-overview');
@@ -377,9 +434,10 @@ const App = {
             Toast.success(`${AI.PROVIDERS[AI.getProvider()].name} API key saved!`);
         });
 
-        getElement('ai-key-clear').addEventListener('click', () => {
+        getElement('ai-key-clear').addEventListener('click', async () => {
             const name = AI.PROVIDERS[AI.getProvider()].name;
-            if (confirm(`Clear your ${name} API key?`)) {
+            const ok = await this.showConfirm(`Clear your ${name} API key?`, 'Clear Key');
+            if (ok) {
                 AI.clearKey();
                 getElement('ai-api-key-input').value = '';
                 this.renderAISettings();
@@ -485,7 +543,8 @@ const App = {
         const cost = getElement('item-cost').value;
 
         if (!name) {
-            alert('Please enter an item name');
+            Toast.error('Please enter an item name.');
+            getElement('item-name').focus();
             return;
         }
 
@@ -678,11 +737,9 @@ const App = {
             });
 
             // Delete
-            itemEl.querySelector('.item-delete').addEventListener('click', () => {
-                if (confirm('Delete this item?')) {
-                    GroceryList.deleteItem(list, itemId);
-                    this.renderItemsList();
-                }
+            itemEl.querySelector('.item-delete').addEventListener('click', async () => {
+                const ok = await this.showConfirm('Remove this item from the list?', 'Remove');
+                if (ok) { GroceryList.deleteItem(list, itemId); this.renderItemsList(); }
             });
         });
     },
@@ -762,7 +819,7 @@ const App = {
 
         const errors = Recipe.validate(this.state.currentRecipe);
         if (errors.length > 0) {
-            Toast.error('Please fix the following errors:\n' + errors.join('\n'));
+            Toast.error(errors.join(' • '));
             return;
         }
 
@@ -836,42 +893,44 @@ const App = {
     addRecipeToShoppingList() {
         if (!this.state.currentRecipe) return;
 
-        // Get or create a new grocery list
-        let targetList;
+        const apply = (targetList) => {
+            const items = Recipe.generateShoppingListItems(this.state.currentRecipe);
+            items.forEach(itemData => {
+                GroceryList.addItem(targetList, itemData.name, itemData.quantity, itemData.estimatedCost);
+                targetList.items[targetList.items.length - 1].growthNote = itemData.note;
+            });
+            Storage.updateList(targetList.id, targetList);
+            this.loadLists();
+            hide(getElement('list-select-modal'));
+            Toast.success(`Added ${items.length} ingredients to "${targetList.title}"!`);
+        };
 
-        if (this.state.lists.length > 0) {
-            // Ask which list to add to
-            const listNames = this.state.lists.map((list, index) => `${index + 1}. ${list.title}`).join('\n');
-            const choice = prompt(`Add ingredients to which list?\n\n${listNames}\n\nEnter number (or 0 for new list):`);
+        const createNew = () => {
+            const newList = GroceryList.createList();
+            newList.title = `${this.state.currentRecipe.title || 'Recipe'} — ${formatDate(getCurrentDate())}`;
+            Storage.addList(newList);
+            apply(newList);
+        };
 
-            if (choice === null) return; // Cancelled
+        if (this.state.lists.length === 0) { createNew(); return; }
 
-            const index = parseInt(choice) - 1;
-            if (index >= 0 && index < this.state.lists.length) {
-                targetList = this.state.lists[index];
-            } else {
-                targetList = GroceryList.createList();
-                targetList.title = `${this.state.currentRecipe.title} - ${formatDate(getCurrentDate())}`;
-                Storage.addList(targetList);
-            }
-        } else {
-            targetList = GroceryList.createList();
-            targetList.title = `${this.state.currentRecipe.title} - ${formatDate(getCurrentDate())}`;
-            Storage.addList(targetList);
-        }
+        // Show list-select modal
+        const modal   = getElement('list-select-modal');
+        const listEl  = getElement('list-select-options');
+        listEl.innerHTML = this.state.lists.map((list, i) => `
+            <li data-index="${i}">${escapeHtml(list.title)}
+                <span class="list-select-meta">${list.items.length} items</span>
+            </li>
+        `).join('');
 
-        // Add ingredients to list
-        const items = Recipe.generateShoppingListItems(this.state.currentRecipe);
-        items.forEach(itemData => {
-            GroceryList.addItem(targetList, itemData.name, itemData.quantity, itemData.estimatedCost);
-            const lastItem = targetList.items[targetList.items.length - 1];
-            lastItem.growthNote = itemData.note;
+        listEl.querySelectorAll('li').forEach(li => {
+            li.addEventListener('click', () => {
+                apply(this.state.lists[parseInt(li.dataset.index)]);
+            });
         });
 
-        Storage.updateList(targetList.id, targetList);
-        this.loadLists();
-
-        Toast.success(`Added ${items.length} ingredients to "${targetList.title}"!`);
+        getElement('list-select-new').onclick = () => { hide(modal); createNew(); };
+        show(modal);
     },
 
     renderRecipeOverview() {
@@ -891,7 +950,7 @@ const App = {
             const totalTime = recipe.prepTime + recipe.cookTime;
             return `
                 <div class="list-card" data-id="${recipe.id}">
-                    <h3>${escapeHtml(recipe.title)}</h3>
+                    <h3>${escapeHtml(recipe.title || 'Untitled Recipe')}</h3>
                     <p class="meta">${recipe.servings} servings • ${totalTime} min</p>
                     <p class="cost">${recipe.ingredients.length} ingredients</p>
                 </div>
@@ -914,8 +973,11 @@ const App = {
 
         const recipe = this.state.currentRecipe;
 
+        getElement('recipe-title-display').textContent = recipe.title || 'New Recipe';
+
         // Set form values
         getElement('recipe-title-input').value = recipe.title;
+        getElement('recipe-title-input').placeholder = 'Recipe title';
         getElement('recipe-description').value = recipe.description;
         getElement('recipe-servings').value = recipe.servings;
         getElement('recipe-prep-time').value = recipe.prepTime || '';
@@ -946,14 +1008,11 @@ const App = {
             </li>
         `).join('');
 
-        // Add delete handlers
         container.querySelectorAll('.ingredient-item').forEach(itemEl => {
             const id = itemEl.dataset.id;
-            itemEl.querySelector('.ingredient-delete').addEventListener('click', () => {
-                if (confirm('Delete this ingredient?')) {
-                    Recipe.deleteIngredient(recipe, id);
-                    this.renderIngredientsList();
-                }
+            itemEl.querySelector('.ingredient-delete').addEventListener('click', async () => {
+                const ok = await this.showConfirm('Remove this ingredient?', 'Remove');
+                if (ok) { Recipe.deleteIngredient(recipe, id); this.renderIngredientsList(); }
             });
         });
     },
@@ -974,14 +1033,11 @@ const App = {
             </li>
         `).join('');
 
-        // Add delete handlers
         container.querySelectorAll('.instruction-delete').forEach(deleteBtn => {
             const index = parseInt(deleteBtn.dataset.index);
-            deleteBtn.addEventListener('click', () => {
-                if (confirm('Delete this step?')) {
-                    Recipe.deleteInstruction(recipe, index);
-                    this.renderInstructionsList();
-                }
+            deleteBtn.addEventListener('click', async () => {
+                const ok = await this.showConfirm('Remove this step?', 'Remove');
+                if (ok) { Recipe.deleteInstruction(recipe, index); this.renderInstructionsList(); }
             });
         });
     },
@@ -1213,11 +1269,11 @@ const App = {
         const actionsEl = actionsId ? getElement(actionsId) : null;
         const submitBtn = submitBtnId ? getElement(submitBtnId) : null;
 
-        resultEl.textContent = '';
+        resultEl.textContent = 'Generating…';
         resultEl.classList.remove('ai-done');
         resultEl.hidden = false;
         if (actionsEl) actionsEl.hidden = true;
-        if (submitBtn) submitBtn.disabled = true;
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = submitBtn.textContent.replace('Generate', 'Generating…'); }
 
         try {
             await streamFn(
@@ -1226,7 +1282,7 @@ const App = {
                     AI.recordGeneration();
                     resultEl.classList.add('ai-done');
                     if (actionsEl) actionsEl.hidden = false;
-                    if (submitBtn) submitBtn.disabled = false;
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = submitBtn.textContent.replace('Generating…', 'Generate'); }
                 }
             );
         } catch (err) {
