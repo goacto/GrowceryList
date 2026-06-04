@@ -1231,7 +1231,7 @@ textarea {
     background: #e5e7eb;
     border-radius: var(--border-radius);
     padding: 3px;
-    margin-bottom: var(--spacing-lg);
+    margin: 0 auto var(--spacing-xl);
     width: fit-content;
 }
 
@@ -1262,7 +1262,21 @@ textarea {
 
 .settings-panel {
     padding: var(--spacing-sm) 0 var(--spacing-xl);
-    max-width: 680px;
+    width: 100%;
+}
+
+/* Profile + AI tabs: center form content in a readable column */
+#settings-panel-profile,
+#settings-panel-ai {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#settings-panel-profile > *,
+#settings-panel-ai > * {
+    width: 100%;
+    max-width: 600px;
 }
 
 /* Profile */
@@ -1445,9 +1459,10 @@ textarea {
 
 .plan-cards {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: var(--spacing-lg);
-    max-width: 680px;
+    max-width: 860px;
+    margin: 0 auto;
 }
 
 .plan-card {
@@ -1555,7 +1570,6 @@ textarea {
     margin-top: var(--spacing-lg);
     font-size: var(--font-size-sm);
     color: var(--color-text-light);
-    max-width: 560px;
     line-height: 1.6;
 }
 
@@ -1573,7 +1587,6 @@ textarea {
 .ai-settings-intro p {
     color: var(--color-text-light);
     line-height: 1.6;
-    max-width: 520px;
 }
 
 .ai-key-status {
