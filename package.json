@@ -1,0 +1,11 @@
+{
+  "name": "growcerylist",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GrowceryList — mindful grocery planning and nutrition for personal growth",
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "stripe": "^16.0.0"
+  }
+}

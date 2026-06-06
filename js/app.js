@@ -16,10 +16,12 @@ const App = {
         currentSettingsTab: 'profile',
         currentView: 'list-overview',
         currentItemForNote: null,
-        // pending AI-generated data waiting for user to apply
         pendingAIList: null,
         pendingAIMealPlan: null,
-        pendingAIRecipe: null
+        pendingAIRecipe: null,
+        // Auth & cloud
+        currentUser: null,
+        config: null
     },
 
     // Initialize application
@@ -33,6 +35,7 @@ const App = {
         this.bindEvents();
         this.render();
         this.initSplash();
+        this.initAuth();   // async — runs after app is visible
     },
 
     // Dark / light mode
@@ -93,10 +96,14 @@ const App = {
 
         if (isNew) {
             Storage.addList(this.state.currentList);
-            Toast.success('List created successfully!');
+            Toast.success('List created!');
         } else {
             Storage.updateList(this.state.currentList.id, this.state.currentList);
-            Toast.success('List saved successfully!');
+            Toast.success('List saved!');
+        }
+
+        if (this.state.currentUser) {
+            Sync.saveList(this.state.currentList, this.state.currentUser.id).catch(console.error);
         }
 
         this.loadLists();
@@ -134,9 +141,60 @@ const App = {
         // ── Global: Escape closes any open modal ──────────────────────────────
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'Escape') return;
-            const modals = ['item-modal', 'meal-recipe-modal', 'confirm-modal', 'list-select-modal'];
+            const modals = ['item-modal', 'meal-recipe-modal', 'confirm-modal', 'list-select-modal', 'auth-modal', 'upgrade-modal'];
             modals.forEach(id => { const m = getElement(id); if (m && m.classList.contains('active')) hide(m); });
+            // Also close account dropdown
+            const dd = getElement('account-dropdown');
+            if (dd && !dd.hidden) dd.hidden = true;
         });
+
+        // ── Auth modal ────────────────────────────────────────────────────────
+        getElement('auth-btn').addEventListener('click', () => this.openAuthModal('signin'));
+        getElement('auth-modal-close').addEventListener('click', () => hide(getElement('auth-modal')));
+        getElement('auth-modal').addEventListener('click', e => { if (e.target === getElement('auth-modal')) hide(getElement('auth-modal')); });
+
+        document.querySelectorAll('.auth-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.switchAuthTab(btn.dataset.tab));
+        });
+
+        getElement('auth-signin-btn').addEventListener('click', () => this.handleSignIn());
+        getElement('auth-signup-btn').addEventListener('click', () => this.handleSignUp());
+        getElement('auth-reset-btn').addEventListener('click', () => this.handleResetPassword());
+
+        // Enter key in auth fields
+        ['auth-email','auth-password'].forEach(id => {
+            getElement(id).addEventListener('keypress', e => { if (e.key === 'Enter') this.handleSignIn(); });
+        });
+        ['auth-signup-email','auth-signup-password'].forEach(id => {
+            getElement(id).addEventListener('keypress', e => { if (e.key === 'Enter') this.handleSignUp(); });
+        });
+        getElement('auth-reset-email').addEventListener('keypress', e => { if (e.key === 'Enter') this.handleResetPassword(); });
+
+        // ── Account dropdown ──────────────────────────────────────────────────
+        getElement('account-avatar-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const dd = getElement('account-dropdown');
+            dd.hidden = !dd.hidden;
+            getElement('account-avatar-btn').setAttribute('aria-expanded', String(!dd.hidden));
+        });
+        document.addEventListener('click', () => {
+            const dd = getElement('account-dropdown');
+            if (dd && !dd.hidden) dd.hidden = true;
+        });
+        getElement('account-signout-btn').addEventListener('click', () => this.handleSignOut());
+        getElement('account-upgrade-btn').addEventListener('click', () => {
+            hide(getElement('account-dropdown'));
+            show(getElement('upgrade-modal'));
+        });
+        getElement('account-portal-btn').addEventListener('click', () => {
+            hide(getElement('account-dropdown'));
+            Sync.openCustomerPortal();
+        });
+
+        // ── Upgrade modal ─────────────────────────────────────────────────────
+        getElement('upgrade-modal-close').addEventListener('click', () => hide(getElement('upgrade-modal')));
+        getElement('upgrade-modal').addEventListener('click', e => { if (e.target === getElement('upgrade-modal')) hide(getElement('upgrade-modal')); });
+        getElement('upgrade-checkout-btn').addEventListener('click', () => this.handleUpgrade());
 
         // ── Global: backdrop click closes modals ──────────────────────────────
         ['item-modal', 'meal-recipe-modal', 'list-select-modal'].forEach(id => {
@@ -187,7 +245,9 @@ const App = {
         getElement('delete-list-btn').addEventListener('click', async () => {
             const ok = await this.showConfirm('Delete this grocery list? This cannot be undone.');
             if (ok) {
-                Storage.deleteList(this.state.currentList.id);
+                const id = this.state.currentList.id;
+                Storage.deleteList(id);
+                if (this.state.currentUser) Sync.deleteList(id, this.state.currentUser.id).catch(console.error);
                 this.loadLists();
                 this.showView('list-overview');
                 this.render();
@@ -287,7 +347,9 @@ const App = {
         getElement('delete-recipe-btn').addEventListener('click', async () => {
             const ok = await this.showConfirm('Delete this recipe? This cannot be undone.');
             if (ok) {
-                Storage.deleteRecipe(this.state.currentRecipe.id);
+                const id = this.state.currentRecipe.id;
+                Storage.deleteRecipe(id);
+                if (this.state.currentUser) Sync.deleteRecipe(id, this.state.currentUser.id).catch(console.error);
                 this.loadRecipes();
                 this.showView('recipe-overview');
                 this.render();
@@ -368,7 +430,9 @@ const App = {
         getElement('delete-meal-plan-btn').addEventListener('click', async () => {
             const ok = await this.showConfirm('Delete this meal plan? This cannot be undone.');
             if (ok) {
-                Storage.deleteMealPlan(this.state.currentMealPlan.id);
+                const id = this.state.currentMealPlan.id;
+                Storage.deleteMealPlan(id);
+                if (this.state.currentUser) Sync.deleteMealPlan(id, this.state.currentUser.id).catch(console.error);
                 this.loadMealPlans();
                 this.showView('meal-plan-overview');
                 this.renderMealPlanOverview();
@@ -829,10 +893,14 @@ const App = {
 
         if (isNew) {
             Storage.addRecipe(this.state.currentRecipe);
-            Toast.success('Recipe created successfully!');
+            Toast.success('Recipe created!');
         } else {
             Storage.updateRecipe(this.state.currentRecipe.id, this.state.currentRecipe);
-            Toast.success('Recipe saved successfully!');
+            Toast.success('Recipe saved!');
+        }
+
+        if (this.state.currentUser) {
+            Sync.saveRecipe(this.state.currentRecipe, this.state.currentUser.id).catch(console.error);
         }
 
         this.loadRecipes();
@@ -1068,11 +1136,237 @@ const App = {
         });
     },
 
+    // === AUTH & CLOUD ===
+
+    async initAuth() {
+        // Load config from API (public keys) — graceful no-op if endpoint unavailable
+        try {
+            const res = await fetch('/api/config');
+            if (res.ok) {
+                this.state.config = await res.json();
+                const { supabaseUrl, supabaseAnonKey } = this.state.config;
+                Auth.init(supabaseUrl, supabaseAnonKey);
+                // Check for existing session
+                const session = await Auth.getSession();
+                if (session) {
+                    this.state.currentUser = session.user;
+                    this.renderAccountUI();
+                    if (Sync.isActive()) await this.syncNow();
+                }
+            }
+        } catch (_) {
+            // Running locally or /api/config not deployed — local-only mode
+        }
+
+        // Handle subscription success/cancel redirect
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('subscription') === 'success') {
+            Toast.success('🎉 Welcome to Growth Pro! Your cloud sync is activating.');
+            window.history.replaceState({}, '', window.location.pathname);
+            if (this.state.currentUser) setTimeout(() => this.syncNow(), 2000);
+        }
+        if (params.get('subscription') === 'cancelled') {
+            Toast.info('Subscription not started. You can upgrade anytime.');
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+    },
+
+    // Called by Supabase auth state listener
+    async onAuthStateChange(event, session) {
+        if (event === 'SIGNED_IN' && session?.user) {
+            this.state.currentUser = session.user;
+            this.renderAccountUI();
+            Toast.success(`Signed in as ${session.user.email}`);
+            hide(getElement('auth-modal'));
+            await this.syncNow();
+        } else if (event === 'SIGNED_OUT') {
+            this.state.currentUser = null;
+            Sync.clearStatus();
+            this.renderAccountUI();
+            this.setSyncStatus(null);
+        }
+    },
+
+    async syncNow() {
+        if (!this.state.currentUser || !Auth.isAvailable()) return;
+        try {
+            const { subscriptionStatus } = await Sync.initialSync(this.state.currentUser.id);
+            this.loadLists();
+            this.loadRecipes();
+            this.loadMealPlans();
+            this.state.profile = Storage.getProfile();
+            this.render();
+            this.renderAccountUI();
+        } catch (e) {
+            console.error('Sync failed:', e);
+        }
+    },
+
+    setSyncStatus(status) {
+        const el = getElement('sync-status');
+        if (!el) return;
+        if (!status) { el.hidden = true; return; }
+        el.hidden = false;
+        el.className = `sync-status ${status}`;
+        el.textContent = status === 'syncing' ? '↻ Syncing' : status === 'synced' ? '☁ Synced' : '✕ Sync error';
+    },
+
+    renderAccountUI() {
+        const user        = this.state.currentUser;
+        const signInBtn   = getElement('auth-btn');
+        const menuWrap    = getElement('account-menu-wrap');
+        const avatarBtn   = getElement('account-avatar-btn');
+        const emailEl     = getElement('account-email');
+        const subStatusEl = getElement('account-sub-status');
+        const upgradeBtn  = getElement('account-upgrade-btn');
+        const portalBtn   = getElement('account-portal-btn');
+
+        if (!user) {
+            signInBtn.hidden = false;
+            menuWrap.hidden  = true;
+            return;
+        }
+
+        signInBtn.hidden = true;
+        menuWrap.hidden  = false;
+
+        const initials = (user.email || '?').split('@')[0].slice(0, 2).toUpperCase();
+        avatarBtn.textContent = initials;
+        emailEl.textContent   = user.email;
+
+        const status = Sync.getStatus();
+        if (status === 'active') {
+            subStatusEl.textContent = '🚀 Growth Pro — Active';
+            upgradeBtn.hidden = true;
+            portalBtn.hidden  = false;
+        } else {
+            subStatusEl.textContent = '🌱 Free Plan';
+            upgradeBtn.hidden = false;
+            portalBtn.hidden  = true;
+        }
+    },
+
+    openAuthModal(tab = 'signin') {
+        this.switchAuthTab(tab);
+        show(getElement('auth-modal'));
+        const firstInput = getElement(tab === 'signin' ? 'auth-email' : tab === 'signup' ? 'auth-signup-email' : 'auth-reset-email');
+        if (firstInput) setTimeout(() => firstInput.focus(), 50);
+    },
+
+    switchAuthTab(tab) {
+        document.querySelectorAll('.auth-tab-btn').forEach(btn => {
+            const active = btn.dataset.tab === tab;
+            btn.classList.toggle('active', active);
+            btn.setAttribute('aria-selected', active);
+        });
+        document.querySelectorAll('.auth-panel').forEach(p => {
+            p.hidden = !p.id.endsWith(tab);
+        });
+        // Clear messages
+        ['auth-signin-error','auth-signup-error','auth-signup-success','auth-reset-error','auth-reset-success'].forEach(id => {
+            const el = getElement(id);
+            if (el) el.hidden = true;
+        });
+    },
+
+    showAuthMsg(id, message, isError = true) {
+        const el = getElement(id);
+        if (!el) return;
+        el.textContent = message;
+        el.hidden = false;
+    },
+
+    async handleSignIn() {
+        const email    = getElement('auth-email').value.trim();
+        const password = getElement('auth-password').value;
+        if (!email || !password) { this.showAuthMsg('auth-signin-error', 'Email and password are required.'); return; }
+        const btn = getElement('auth-signin-btn');
+        btn.disabled = true; btn.textContent = 'Signing in…';
+        const { error } = await Auth.signIn(email, password);
+        btn.disabled = false; btn.textContent = 'Sign In';
+        if (error) this.showAuthMsg('auth-signin-error', error.message);
+    },
+
+    async handleSignUp() {
+        const email    = getElement('auth-signup-email').value.trim();
+        const password = getElement('auth-signup-password').value;
+        if (!email || !password) { this.showAuthMsg('auth-signup-error', 'Email and password are required.'); return; }
+        if (password.length < 6) { this.showAuthMsg('auth-signup-error', 'Password must be at least 6 characters.'); return; }
+        const btn = getElement('auth-signup-btn');
+        btn.disabled = true; btn.textContent = 'Creating account…';
+        const { error } = await Auth.signUp(email, password);
+        btn.disabled = false; btn.textContent = 'Create Account';
+        if (error) {
+            this.showAuthMsg('auth-signup-error', error.message);
+        } else {
+            this.showAuthMsg('auth-signup-success', '✓ Check your email to confirm your account.', false);
+        }
+    },
+
+    async handleResetPassword() {
+        const email = getElement('auth-reset-email').value.trim();
+        if (!email) { this.showAuthMsg('auth-reset-error', 'Please enter your email address.'); return; }
+        const btn = getElement('auth-reset-btn');
+        btn.disabled = true; btn.textContent = 'Sending…';
+        const { error } = await Auth.resetPassword(email);
+        btn.disabled = false; btn.textContent = 'Send Reset Link';
+        if (error) {
+            this.showAuthMsg('auth-reset-error', error.message);
+        } else {
+            this.showAuthMsg('auth-reset-success', '✓ Reset link sent — check your email.', false);
+        }
+    },
+
+    async handleSignOut() {
+        hide(getElement('account-dropdown'));
+        await Auth.signOut();
+        Toast.info('Signed out.');
+    },
+
+    async handleUpgrade() {
+        const user = this.state.currentUser;
+        if (!user) { this.openAuthModal('signin'); return; }
+        try {
+            const { url } = await Sync.createCheckoutSession(user.id, user.email);
+            window.location.href = url;
+        } catch (e) {
+            Toast.error('Could not start checkout: ' + e.message);
+        }
+    },
+
     // === SETTINGS METHODS ===
 
     renderSettings() {
         this.renderProfilePanel();
         this.renderAISettings();
+        this.renderPlanPanel();
+    },
+
+    renderPlanPanel() {
+        // Update plan CTAs based on live auth + subscription state
+        const planPanel = getElement('settings-panel-plan');
+        if (!planPanel) return;
+
+        // Find/update the plan footnote area
+        const footnote = planPanel.querySelector('.plan-footnote');
+        if (!footnote) return;
+
+        const user = this.state.currentUser;
+        const isActive = Sync.isActive();
+
+        if (!user) {
+            footnote.innerHTML = `Not signed in. <button class="btn btn-primary btn-small" id="settings-signin-btn" style="margin-left:8px">Sign In / Sign Up</button>`;
+            const signinBtn = getElement('settings-signin-btn');
+            if (signinBtn) signinBtn.addEventListener('click', () => this.openAuthModal('signin'));
+        } else if (isActive) {
+            footnote.innerHTML = `🚀 You're on Growth Pro. <button class="btn btn-secondary btn-small" id="settings-portal-btn" style="margin-left:8px">Manage Subscription</button>`;
+            const portalBtn = getElement('settings-portal-btn');
+            if (portalBtn) portalBtn.addEventListener('click', () => Sync.openCustomerPortal());
+        } else {
+            footnote.innerHTML = `Signed in as <strong>${user.email}</strong>. <button class="btn btn-primary btn-small" id="settings-upgrade-btn" style="margin-left:8px">Upgrade to Pro</button>`;
+            const upgradeBtn = getElement('settings-upgrade-btn');
+            if (upgradeBtn) upgradeBtn.addEventListener('click', () => show(getElement('upgrade-modal')));
+        }
     },
 
     renderProfilePanel() {
@@ -1613,6 +1907,10 @@ const App = {
         } else {
             Storage.updateMealPlan(plan.id, plan);
             Toast.success('Meal plan saved!');
+        }
+
+        if (this.state.currentUser) {
+            Sync.saveMealPlan(plan, this.state.currentUser.id).catch(console.error);
         }
 
         this.loadMealPlans();

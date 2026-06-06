@@ -6,6 +6,9 @@
     <meta name="description" content="GrowceryList - Fuel your growth journey through mindful nutrition">
     <title>GrowceryList - Mindful Grocery Planning</title>
     <link rel="stylesheet" href="css/styles.css">
+    <!-- Supabase & Stripe loaded from CDN; app degrades gracefully if unavailable -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
 
@@ -40,6 +43,24 @@
                     <button id="nav-settings" class="nav-btn" aria-label="Settings">⚙ Settings</button>
                 </nav>
                 <button id="theme-toggle" class="theme-toggle-btn" aria-label="Toggle dark mode" title="Toggle dark mode">🌙</button>
+
+                <!-- Account area: sign-in button when logged out, avatar+menu when logged in -->
+                <div class="account-area">
+                    <span id="sync-status" class="sync-status" hidden aria-live="polite"></span>
+                    <button id="auth-btn" class="btn btn-secondary btn-small account-signin-btn" aria-label="Sign in or create account">Sign In</button>
+                    <div id="account-menu-wrap" class="account-menu-wrap" hidden>
+                        <button id="account-avatar-btn" class="account-avatar" aria-label="Account menu" aria-expanded="false" aria-haspopup="true">?</button>
+                        <div id="account-dropdown" class="account-dropdown" hidden role="menu">
+                            <p id="account-email" class="account-dropdown-email"></p>
+                            <div class="account-dropdown-divider"></div>
+                            <p id="account-sub-status" class="account-dropdown-sub"></p>
+                            <button id="account-upgrade-btn" class="btn btn-primary btn-small account-dropdown-item" hidden>Upgrade to Pro</button>
+                            <button id="account-portal-btn" class="btn btn-secondary btn-small account-dropdown-item" hidden>Manage Subscription</button>
+                            <div class="account-dropdown-divider"></div>
+                            <button id="account-signout-btn" class="account-dropdown-item account-signout">Sign Out</button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
@@ -642,6 +663,87 @@
         </div>
     </footer>
 
+    <!-- Auth Modal — Sign In / Sign Up / Reset Password -->
+    <div id="auth-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-heading">
+        <div class="modal-content auth-modal-content">
+            <span class="modal-close" id="auth-modal-close">&times;</span>
+            <div class="auth-brand">
+                <span class="auth-brand-icon">🌱</span>
+                <h2 id="auth-modal-heading">GrowceryList</h2>
+            </div>
+
+            <nav class="auth-tabs" role="tablist" aria-label="Authentication options">
+                <button class="auth-tab-btn active" role="tab" data-tab="signin"  aria-selected="true"  aria-controls="auth-panel-signin">Sign In</button>
+                <button class="auth-tab-btn"        role="tab" data-tab="signup"  aria-selected="false" aria-controls="auth-panel-signup">Sign Up</button>
+                <button class="auth-tab-btn"        role="tab" data-tab="reset"   aria-selected="false" aria-controls="auth-panel-reset">Reset</button>
+            </nav>
+
+            <!-- Sign In -->
+            <div class="auth-panel" id="auth-panel-signin" role="tabpanel">
+                <div class="form-group">
+                    <label for="auth-email">Email</label>
+                    <input type="email" id="auth-email" class="input-field" placeholder="you@example.com" autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="auth-password">Password</label>
+                    <input type="password" id="auth-password" class="input-field" placeholder="Your password" autocomplete="current-password">
+                </div>
+                <div id="auth-signin-error" class="auth-msg auth-msg-error" hidden></div>
+                <button id="auth-signin-btn" class="btn btn-primary auth-submit-btn">Sign In</button>
+            </div>
+
+            <!-- Sign Up -->
+            <div class="auth-panel" id="auth-panel-signup" role="tabpanel" hidden>
+                <p class="auth-help">Create a free account. Upgrade to Growth Pro anytime for cloud sync and AI tools.</p>
+                <div class="form-group">
+                    <label for="auth-signup-email">Email</label>
+                    <input type="email" id="auth-signup-email" class="input-field" placeholder="you@example.com" autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="auth-signup-password">Password</label>
+                    <input type="password" id="auth-signup-password" class="input-field" placeholder="6+ characters" autocomplete="new-password">
+                </div>
+                <div id="auth-signup-error" class="auth-msg auth-msg-error" hidden></div>
+                <div id="auth-signup-success" class="auth-msg auth-msg-success" hidden></div>
+                <button id="auth-signup-btn" class="btn btn-primary auth-submit-btn">Create Account</button>
+            </div>
+
+            <!-- Reset Password -->
+            <div class="auth-panel" id="auth-panel-reset" role="tabpanel" hidden>
+                <p class="auth-help">We'll send a password reset link to your email.</p>
+                <div class="form-group">
+                    <label for="auth-reset-email">Email</label>
+                    <input type="email" id="auth-reset-email" class="input-field" placeholder="you@example.com" autocomplete="email">
+                </div>
+                <div id="auth-reset-error" class="auth-msg auth-msg-error" hidden></div>
+                <div id="auth-reset-success" class="auth-msg auth-msg-success" hidden></div>
+                <button id="auth-reset-btn" class="btn btn-primary auth-submit-btn">Send Reset Link</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upgrade Modal -->
+    <div id="upgrade-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="upgrade-modal-title">
+        <div class="modal-content upgrade-modal-content">
+            <span class="modal-close" id="upgrade-modal-close">&times;</span>
+            <div class="upgrade-hero">
+                <span class="upgrade-icon">🚀</span>
+                <h2 id="upgrade-modal-title">Growth Pro</h2>
+                <p class="upgrade-price">$6 <span>/month</span></p>
+                <p class="upgrade-tagline">Cloud sync + AI tools + community</p>
+            </div>
+            <ul class="upgrade-features">
+                <li>☁ Sync across all your devices</li>
+                <li>✨ All 6 AI growth tools</li>
+                <li>🌱 Community feed &amp; sharing</li>
+                <li>📊 Spending analytics</li>
+                <li>🔒 Your data stays yours — export anytime</li>
+            </ul>
+            <button id="upgrade-checkout-btn" class="btn btn-primary upgrade-cta-btn">Start Growth Pro</button>
+            <p class="upgrade-note">Cancel anytime. No lock-in.</p>
+        </div>
+    </div>
+
     <!-- In-App Confirmation Modal (replaces all browser confirm() dialogs) -->
     <div id="confirm-modal" class="modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-modal-msg">
         <div class="modal-content confirm-modal-content">
@@ -702,6 +804,8 @@
     <script src="js/recipe.js"></script>
     <script src="js/mealPlan.js"></script>
     <script src="js/ai.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/sync.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
