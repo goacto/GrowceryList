@@ -477,6 +477,11 @@ const App = {
             this.saveProfile();
         });
 
+        getElement('promo-redeem-btn').addEventListener('click', () => this.handleRedeemPromo());
+        getElement('promo-code-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.handleRedeemPromo();
+        });
+
         getElement('profile-display-name').addEventListener('input', () => {
             this.updateAvatarPreview();
         });
@@ -1235,8 +1240,14 @@ const App = {
         avatarBtn.textContent = initials;
         emailEl.textContent   = user.email;
 
-        const status = Sync.getStatus();
-        if (status === 'active') {
+        if (Sync.isActive() && Sync.isTrialActive()) {
+            // Promo trial in progress
+            const days = Sync.trialDaysLeft();
+            subStatusEl.textContent = `🎟 Pro Trial — ${days} day${days === 1 ? '' : 's'} left`;
+            upgradeBtn.hidden = false;   // let them convert to paid
+            portalBtn.hidden  = true;
+        } else if (Sync.isActive()) {
+            // Paid Stripe subscriber
             subStatusEl.textContent = '🚀 Growth Pro — Active';
             upgradeBtn.hidden = true;
             portalBtn.hidden  = false;
@@ -1344,6 +1355,35 @@ const App = {
         }
     },
 
+    async handleRedeemPromo() {
+        const user = this.state.currentUser;
+        const msgEl = getElement('promo-msg');
+        const showMsg = (text, ok) => {
+            msgEl.textContent = text;
+            msgEl.className = 'promo-msg ' + (ok ? 'promo-msg-success' : 'promo-msg-error');
+            msgEl.hidden = false;
+        };
+
+        if (!user) { this.openAuthModal('signin'); return; }
+        const code = getElement('promo-code-input').value.trim();
+        if (!code) { showMsg('Enter a promo code.', false); return; }
+
+        const btn = getElement('promo-redeem-btn');
+        btn.disabled = true; btn.textContent = 'Redeeming…';
+        try {
+            const { durationDays } = await Sync.redeemPromo(user.id, code);
+            showMsg(`🎉 Success! Growth Pro unlocked for ${durationDays} days.`, true);
+            getElement('promo-code-input').value = '';
+            this.renderAccountUI();
+            this.renderPlanPanel();
+            Toast.success(`Growth Pro trial activated — ${durationDays} days!`);
+        } catch (e) {
+            showMsg(e.message, false);
+        } finally {
+            btn.disabled = false; btn.textContent = 'Redeem';
+        }
+    },
+
     // === SETTINGS METHODS ===
 
     renderSettings() {
@@ -1362,20 +1402,29 @@ const App = {
         if (!footnote) return;
 
         const user = this.state.currentUser;
-        const isActive = Sync.isActive();
+        const promoCard = planPanel.querySelector('.promo-card');
 
         if (!user) {
             footnote.innerHTML = `Not signed in. <button class="btn btn-primary btn-small" id="settings-signin-btn" style="margin-left:8px">Sign In / Sign Up</button>`;
             const signinBtn = getElement('settings-signin-btn');
             if (signinBtn) signinBtn.addEventListener('click', () => this.openAuthModal('signin'));
-        } else if (isActive) {
+            if (promoCard) promoCard.hidden = false;
+        } else if (Sync.isActive() && Sync.isTrialActive()) {
+            const days = Sync.trialDaysLeft();
+            footnote.innerHTML = `🎟 Pro trial active — <strong>${days} day${days === 1 ? '' : 's'} left</strong>. <button class="btn btn-primary btn-small" id="settings-upgrade-btn" style="margin-left:8px">Upgrade to keep Pro</button>`;
+            const upgradeBtn = getElement('settings-upgrade-btn');
+            if (upgradeBtn) upgradeBtn.addEventListener('click', () => show(getElement('upgrade-modal')));
+            if (promoCard) promoCard.hidden = true;
+        } else if (Sync.isActive()) {
             footnote.innerHTML = `🚀 You're on Growth Pro. <button class="btn btn-secondary btn-small" id="settings-portal-btn" style="margin-left:8px">Manage Subscription</button>`;
             const portalBtn = getElement('settings-portal-btn');
             if (portalBtn) portalBtn.addEventListener('click', () => Sync.openCustomerPortal());
+            if (promoCard) promoCard.hidden = true;
         } else {
-            footnote.innerHTML = `Signed in as <strong>${user.email}</strong>. <button class="btn btn-primary btn-small" id="settings-upgrade-btn" style="margin-left:8px">Upgrade to Pro</button>`;
+            footnote.innerHTML = `Signed in as <strong>${escapeHtml(user.email)}</strong>. <button class="btn btn-primary btn-small" id="settings-upgrade-btn" style="margin-left:8px">Upgrade to Pro</button>`;
             const upgradeBtn = getElement('settings-upgrade-btn');
             if (upgradeBtn) upgradeBtn.addEventListener('click', () => show(getElement('upgrade-modal')));
+            if (promoCard) promoCard.hidden = false;
         }
     },
 

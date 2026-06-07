@@ -7,11 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v0.5.0
-- User accounts and authentication
+### Planned
 - Community feed and sharing
-- Multi-device sync
 - Spending analytics dashboard
+
+---
+
+## [0.7.0] - 2026-06-07
+
+### Added — Promo Codes / Free Trials
+- Redeem a promo code in **Settings → Plan** for a time-limited Growth Pro trial (no card required)
+- Server-validated via `/api/redeem-promo`; codes stored in Supabase `promo_codes` table
+- One redemption per user (tracked in `promo_redemptions`), optional per-code redemption caps
+- Trial status surfaced in the account menu ("🎟 Pro Trial — N days left") and auto-reverts to Free on expiry
+- New `supabase/promo_codes.sql` migration; seeds `WELCOME7` and `GROW30`
+
+### Added — Google Sign-In
+- "Continue with Google" on the auth modal via Supabase OAuth (alongside email/password)
+- Shared across Sign In / Sign Up; hidden on the password-reset tab
+
+### Fixed
+- Stripe checkout "Not a valid URL" — `APP_URL` now normalized (scheme added, trailing slash/whitespace stripped) in `create-checkout` and `portal`
+- Mobile header: nav is a 2×2 grid, controls centered, account dropdown no longer clips off-screen
+
+---
+
+## [0.6.0] - 2026-06-05
+
+### Added — Accounts, Cloud Sync & Subscriptions
+- **Auth** (`js/auth.js`, Supabase): email/password sign-up, sign-in, password reset
+- **Cloud sync** (`js/sync.js`): last-write-wins merge of lists, recipes, meal plans, and profile on sign-in; per-save and per-delete background sync (Growth Pro only)
+- **Stripe billing**: `/api/create-checkout`, `/api/stripe-webhook`, `/api/portal`, `/api/config`
+- Account menu (avatar, email, subscription status, upgrade / manage / sign out), sync status badge, upgrade modal
+- Infrastructure: `supabase/schema.sql` (RLS-secured), `package.json`, `.env.example`, `SETUP.md`
+
+---
+
+## [0.5.0] - 2026-06-04
+
+### Added — Splash Screen, Multi-Provider AI & Freemium
+- Animated splash screen (logo pulse, auto-dismiss)
+- **Multi-provider AI (BYOK)**: Anthropic Claude, OpenAI GPT-4o, xAI Grok — per-provider key storage with a visual selector; OpenAI-compatible streaming alongside Anthropic
+- Freemium usage model: free-generation counter (5 + 10 bonus) and engagement milestone tracker (profile → first list → shopping session unlocks bonus)
 
 ---
 

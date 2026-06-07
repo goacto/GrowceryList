@@ -8,16 +8,16 @@ Accounts and paid subscriptions require three services: **Supabase** (auth + dat
 
 1. Create a free project at [supabase.com](https://supabase.com)
 2. Go to **SQL Editor** → paste the full contents of [`supabase/schema.sql`](supabase/schema.sql) → Run
-3. Go to **Settings → API** → copy:
-   - **Project URL** → `SUPABASE_URL`
-   - **anon / public key** → `SUPABASE_ANON_KEY`
-   - **service_role key** → `SUPABASE_SERVICE_ROLE_KEY` (keep secret — server-side only)
-4. Go to **Authentication → Providers → Email** → ensure Email provider is enabled
-5. (Optional) Set a custom **Site URL** and **Redirect URLs** under **Authentication → URL Configuration**:
-   ```
-   https://your-domain.com
-   https://your-domain.com/?reset=true
-   ```
+   - For promo codes / free trials, also run [`supabase/promo_codes.sql`](supabase/promo_codes.sql)
+3. Get your project URL: **Settings → General** → copy **Project URL** (`https://xxxx.supabase.co`) → `SUPABASE_URL`
+4. Get your keys: **Settings → API Keys**:
+   - **Publishable key** (`sb_publishable_...`) → `SUPABASE_ANON_KEY`
+   - **Secret key** (`sb_secret_...`) → `SUPABASE_SERVICE_ROLE_KEY` (keep secret — server-side only)
+   - *(Legacy projects show JWT-style `anon` / `service_role` keys instead — either format works.)*
+5. **Authentication → Sign In / Providers** → click **Email** → ensure it's enabled
+6. **Authentication → URL Configuration** — **required**, not optional (skipping this sends OAuth users to `localhost`):
+   - **Site URL**: `https://your-domain.com`
+   - **Redirect URLs**: add `https://your-domain.com/**`
 
 ---
 
@@ -42,7 +42,30 @@ Accounts and paid subscriptions require three services: **Supabase** (auth + dat
 
 ---
 
-## 3. Vercel Environment Variables
+## 3. Google Sign-In (optional)
+
+Lets users sign in with Google in addition to email/password.
+
+1. **Google Cloud Console** ([console.cloud.google.com](https://console.cloud.google.com)) → pick or create a project
+2. **APIs & Services → OAuth consent screen / Branding**:
+   - App name: the name users see on the Google prompt (e.g. your company name)
+   - Support email + (optional) logo
+   - **Publish** the app (Audience → Publish) so anyone can sign in — while in "Testing", only allow-listed test users can
+3. **APIs & Services → Credentials → Create Credentials → OAuth client ID**:
+   - Type: **Web application**
+   - **Authorized redirect URI** (must match exactly):
+     ```
+     https://<your-project-ref>.supabase.co/auth/v1/callback
+     ```
+   - Create → copy the **Client ID** and **Client Secret**
+4. **Supabase → Authentication → Sign In / Providers → Google**:
+   - Enable, paste the Client ID and Client Secret, Save
+
+> The OAuth **consent screen / branding is shared by all clients in a Google Cloud project**. If you run multiple products from one project, they all show the same app name on the Google prompt. Use a separate Google Cloud project per product only if each needs its own branding.
+
+---
+
+## 4. Vercel Environment Variables
 
 In your Vercel project → **Settings → Environment Variables**, add all variables from [`.env.example`](.env.example):
 
@@ -61,7 +84,7 @@ After adding variables, trigger a **Redeploy** from the Vercel dashboard.
 
 ---
 
-## 4. Local Development
+## 5. Local Development
 
 For local development with auth, create a `.env.local` file (gitignored):
 ```bash
@@ -104,3 +127,25 @@ Browser (vanilla JS)
 | Account + password auth | — | ✓ |
 | AI features (BYOK) | — | ✓ |
 | Community feed (coming soon) | — | ✓ |
+
+---
+
+## Promo Codes (free trials)
+
+Users can redeem a code in **Settings → Plan** for a time-limited Growth Pro trial — no card required. The trial grants full Pro access until it expires, then reverts to Free.
+
+**Manage codes** in the Supabase SQL Editor (`promo_codes` table):
+
+```sql
+-- Add a code: 14 free days, max 100 uses
+insert into public.promo_codes (code, duration_days, max_redemptions)
+values ('LAUNCH14', 14, 100);
+
+-- Disable a code
+update public.promo_codes set active = false where code = 'LAUNCH14';
+
+-- See redemption counts
+select code, duration_days, times_redeemed, max_redemptions, active from public.promo_codes;
+```
+
+Codes are stored UPPERCASE, validated server-side in [`api/redeem-promo.js`](api/redeem-promo.js), and each user can redeem a given code only once. The starter migration seeds `WELCOME7` (7 days) and `GROW30` (30 days).

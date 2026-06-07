@@ -8,11 +8,52 @@ const Sync = {
     // ─── Subscription ─────────────────────────────────────────────────────────
 
     SUBSCRIPTION_KEY: 'growcerylist_subscription',
+    TRIAL_KEY:        'growcerylist_trial_ends',
 
     getStatus()   { return localStorage.getItem(this.SUBSCRIPTION_KEY) || 'free'; },
     setStatus(s)  { localStorage.setItem(this.SUBSCRIPTION_KEY, s); },
-    isActive()    { return this.getStatus() === 'active'; },
-    clearStatus() { localStorage.removeItem(this.SUBSCRIPTION_KEY); },
+    clearStatus() {
+        localStorage.removeItem(this.SUBSCRIPTION_KEY);
+        localStorage.removeItem(this.TRIAL_KEY);
+    },
+
+    getTrialEnds()  { return localStorage.getItem(this.TRIAL_KEY) || null; },
+    setTrialEnds(t) { t ? localStorage.setItem(this.TRIAL_KEY, t) : localStorage.removeItem(this.TRIAL_KEY); },
+
+    // True if on a promo trial that hasn't expired
+    isTrialActive() {
+        const t = this.getTrialEnds();
+        return !!t && new Date(t) > new Date();
+    },
+
+    // Days remaining on the trial (0 if none/expired)
+    trialDaysLeft() {
+        const t = this.getTrialEnds();
+        if (!t) return 0;
+        const ms = new Date(t) - new Date();
+        return ms > 0 ? Math.ceil(ms / 86400000) : 0;
+    },
+
+    // Pro is active if status is active AND (no trial set, or trial still valid)
+    isActive() {
+        if (this.getStatus() !== 'active') return false;
+        const t = this.getTrialEnds();
+        if (t && new Date(t) <= new Date()) return false;  // trial expired
+        return true;
+    },
+
+    async redeemPromo(userId, code) {
+        const res = await fetch('/api/redeem-promo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, code })
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || `Redeem failed (${res.status})`);
+        this.setStatus('active');
+        this.setTrialEnds(body.trialEndsAt);
+        return body;
+    },
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -57,9 +98,10 @@ const Sync = {
 
             if (profileRes.data) {
                 const { id, updated_at, subscription_status, stripe_customer_id,
-                        subscription_id, ...profileFields } = profileRes.data;
+                        subscription_id, trial_ends_at, ...profileFields } = profileRes.data;
                 Storage.saveProfile(profileFields);
                 this.setStatus(subscription_status || 'free');
+                this.setTrialEnds(trial_ends_at || null);
                 if (stripe_customer_id) {
                     localStorage.setItem('growcerylist_stripe_customer', stripe_customer_id);
                 }

@@ -1,6 +1,6 @@
 # GrowceryList - Product Backlog
 
-*Last Updated: June 4, 2026 (v0.4.0)*
+*Last Updated: June 7, 2026 (v0.7.0)*
 
 This backlog tracks all planned features, enhancements, and improvements for GrowceryList. Items are organized by development phase and priority.
 
@@ -109,14 +109,22 @@ This backlog tracks all planned features, enhancements, and improvements for Gro
 
 ## Phase 3: Community & Sharing
 
-### 📋 Next
+### ✅ Completed — Accounts, Cloud & Billing (v0.6.0 / v0.7.0)
 
 **Account System**
-- [ ] Optional user account creation (email/password)
-- [ ] Secure authentication
-- [ ] Profile creation (name, avatar, growth journey statement)
-- [ ] Sync data across devices when logged in
-- [ ] Keep local-only option for privacy-conscious users
+- [x] Optional user account creation (email/password)
+- [x] Secure authentication (Supabase, RLS-secured)
+- [x] Google OAuth sign-in
+- [x] Password reset
+- [x] Profile creation (name, avatar initials, growth journey statement)
+- [x] Sync data across devices when logged in (Growth Pro)
+- [x] Keep local-only option for privacy-conscious users (free tier, no account needed)
+
+**Monetization**
+- [x] Stripe subscriptions — Growth Pro ($6/mo): checkout, webhook, customer portal
+- [x] Promo codes / free trials (redeem in Settings → Plan)
+
+### 📋 Next
 
 **Community Feed**
 - [ ] Public feed of shared grocery lists and reflections
