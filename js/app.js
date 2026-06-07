@@ -160,6 +160,7 @@ const App = {
         getElement('auth-signin-btn').addEventListener('click', () => this.handleSignIn());
         getElement('auth-signup-btn').addEventListener('click', () => this.handleSignUp());
         getElement('auth-reset-btn').addEventListener('click', () => this.handleResetPassword());
+        getElement('auth-google-btn').addEventListener('click', () => this.handleGoogleSignIn());
 
         // Enter key in auth fields
         ['auth-email','auth-password'].forEach(id => {
@@ -1262,6 +1263,9 @@ const App = {
         document.querySelectorAll('.auth-panel').forEach(p => {
             p.hidden = !p.id.endsWith(tab);
         });
+        // Google OAuth applies to sign in / sign up, not password reset
+        const oauth = getElement('auth-oauth-section');
+        if (oauth) oauth.hidden = (tab === 'reset');
         // Clear messages
         ['auth-signin-error','auth-signup-error','auth-signup-success','auth-reset-error','auth-reset-success'].forEach(id => {
             const el = getElement(id);
@@ -1301,6 +1305,12 @@ const App = {
         } else {
             this.showAuthMsg('auth-signup-success', '✓ Check your email to confirm your account.', false);
         }
+    },
+
+    async handleGoogleSignIn() {
+        const { error } = await Auth.signInWithGoogle();
+        if (error) Toast.error(error.message);
+        // On success the browser redirects to Google, then back — onAuthStateChange handles the rest
     },
 
     async handleResetPassword() {

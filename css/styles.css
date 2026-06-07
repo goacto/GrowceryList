@@ -1939,6 +1939,54 @@ textarea {
 
 .auth-submit-btn { width: 100%; margin-top: var(--spacing-sm); }
 
+/* Google OAuth button */
+.btn-google {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--color-white);
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    font-family: var(--font-family);
+    cursor: pointer;
+    transition: background-color 0.15s, box-shadow 0.15s;
+}
+.btn-google:hover {
+    background: #f7f8f8;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+[data-theme="dark"] .btn-google {
+    background: #1e293b;
+    color: #f1f5f9;
+    border-color: #334155;
+}
+[data-theme="dark"] .btn-google:hover { background: #334155; }
+.google-icon { flex-shrink: 0; }
+
+.auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: var(--spacing-md) 0;
+    color: var(--color-text-light);
+    font-size: 12px;
+}
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #e5e7eb;
+}
+[data-theme="dark"] .auth-divider::before,
+[data-theme="dark"] .auth-divider::after { border-color: #334155; }
+.auth-divider span { padding: 0 var(--spacing-sm); }
+
 /* Upgrade Modal */
 .upgrade-modal-content {
     max-width: 420px;

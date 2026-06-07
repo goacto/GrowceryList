@@ -46,6 +46,14 @@ const Auth = {
         return this.client.auth.signInWithPassword({ email, password });
     },
 
+    async signInWithGoogle() {
+        if (!this.client) return { error: { message: 'Auth not configured.' } };
+        return this.client.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: `${window.location.origin}${window.location.pathname}` }
+        });
+    },
+
     async signOut() {
         if (!this.client) return;
         return this.client.auth.signOut();
