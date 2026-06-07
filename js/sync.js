@@ -141,7 +141,10 @@ const Sync = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId, email })
         });
-        if (!res.ok) throw new Error('Failed to create checkout session');
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.error || `Checkout failed (${res.status})`);
+        }
         return res.json();
     },
 
