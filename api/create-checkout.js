@@ -13,6 +13,10 @@ module.exports = async function handler(req, res) {
 
     if (!userId) return res.status(400).json({ error: 'userId required' });
 
+    // Normalize base URL: ensure scheme, strip whitespace and trailing slash
+    let base = (process.env.APP_URL || req.headers.origin || '').trim().replace(/\/+$/, '');
+    if (base && !/^https?:\/\//i.test(base)) base = `https://${base}`;
+
     try {
         const session = await stripe.checkout.sessions.create({
             mode: 'subscription',
@@ -21,8 +25,8 @@ module.exports = async function handler(req, res) {
             line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
             metadata: { userId },
             subscription_data: { metadata: { userId } },
-            success_url: `${process.env.APP_URL || req.headers.origin}?subscription=success`,
-            cancel_url:  `${process.env.APP_URL || req.headers.origin}?subscription=cancelled`
+            success_url: `${base}/?subscription=success`,
+            cancel_url:  `${base}/?subscription=cancelled`
         });
 
         res.json({ url: session.url });

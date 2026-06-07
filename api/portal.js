@@ -13,10 +13,13 @@ module.exports = async function handler(req, res) {
 
     if (!customerId) return res.status(400).json({ error: 'customerId required' });
 
+    let base = (process.env.APP_URL || req.headers.origin || '').trim().replace(/\/+$/, '');
+    if (base && !/^https?:\/\//i.test(base)) base = `https://${base}`;
+
     try {
         const session = await stripe.billingPortal.sessions.create({
             customer:   customerId,
-            return_url: process.env.APP_URL || req.headers.origin
+            return_url: base
         });
         res.json({ url: session.url });
     } catch (err) {
